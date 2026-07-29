@@ -5,6 +5,7 @@ import { useAuth } from '@/auth/AuthContext';
 import { validateRegisterForm, hasErrors } from '@/auth/validation';
 import type { ValidationErrors } from '@/auth/validation';
 import { FormInput } from '@/components/FormInput';
+import { Logo } from '@/components/Logo';
 import type { AuthStackParamList } from '@/navigation/types';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
@@ -49,7 +50,8 @@ export function RegisterScreen({ navigation }: Props) {
         keyboardShouldPersistTaps="handled"
       >
         <View className="items-center mb-6">
-          <Text className="font-hanken-bold text-display-lg text-on-surface">Crea tu cuenta</Text>
+          <Logo size={80} />
+          <Text className="font-hanken-bold text-display-lg text-on-surface mt-4">Crea tu cuenta</Text>
           <Text className="font-inter text-body-md text-on-surface-variant mt-2 text-center">
             Unete a la plataforma lider en diagnostico agricola de precision.
           </Text>

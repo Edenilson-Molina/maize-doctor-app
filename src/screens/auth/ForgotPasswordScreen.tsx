@@ -4,6 +4,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { validateEmail } from '@/auth/validation';
 import { FormInput } from '@/components/FormInput';
 import { Icon } from '@/components/Icon';
+import { Logo } from '@/components/Logo';
 import type { AuthStackParamList } from '@/navigation/types';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'ForgotPassword'>;
@@ -26,7 +27,8 @@ export function ForgotPasswordScreen({ navigation }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View className="flex-1 justify-center items-center">
-        <Text className="font-hanken-bold text-headline-lg-mobile text-on-surface text-center mb-3">
+        <Logo size={80} />
+        <Text className="font-hanken-bold text-headline-lg-mobile text-on-surface text-center mb-3 mt-4">
           ¿Olvidaste tu contraseña?
         </Text>
         <Text className="font-inter text-body-md text-on-surface-variant text-center mb-8 px-4">

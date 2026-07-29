@@ -1,3 +1,21 @@
+jest.mock('@/data/database', () => ({
+  database: {
+    collections: {
+      get: jest.fn().mockReturnValue({
+        query: jest.fn().mockReturnValue({
+          fetch: jest.fn().mockResolvedValue([]),
+          fetchCount: jest.fn().mockResolvedValue(0),
+          observe: jest.fn().mockReturnValue({ subscribe: jest.fn() }),
+        }),
+      }),
+    },
+  },
+}));
+
+jest.mock('@/data/seedDevData', () => ({
+  seedDevData: jest.fn().mockResolvedValue(undefined),
+}));
+
 import { render } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '@/auth/AuthContext';

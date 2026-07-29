@@ -6,6 +6,7 @@ import { validateLoginForm, hasErrors } from '@/auth/validation';
 import type { ValidationErrors } from '@/auth/validation';
 import { FormInput } from '@/components/FormInput';
 import { Icon } from '@/components/Icon';
+import { Logo } from '@/components/Logo';
 import type { AuthStackParamList } from '@/navigation/types';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
@@ -42,6 +43,10 @@ export function LoginScreen({ navigation }: Props) {
         contentContainerClassName="flex-grow justify-end px-container-padding pb-8"
         keyboardShouldPersistTaps="handled"
       >
+        <View className="items-center mb-6">
+          <Logo size={96} />
+        </View>
+
         <View className="bg-surface-container-lowest rounded-xl p-6 mb-6">
           <Text className="font-hanken-bold text-headline-md text-on-surface mb-6">
             Iniciar Sesion
