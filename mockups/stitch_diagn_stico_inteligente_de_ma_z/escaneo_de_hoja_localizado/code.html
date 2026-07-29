@@ -1,0 +1,191 @@
+<!DOCTYPE html><html class="light" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>AgriScan Corn - Scan Interface</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;700&amp;family=Inter:wght@400;500;700&amp;family=Jetbrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">tailwind.config = {darkMode: "class", theme: {extend: {colors: {outline: "#717973", "surface-dim": "#d9dadb", "surface-container": "#edeeef", "on-tertiary-fixed-variant": "#0e5138", "on-tertiary": "#ffffff", secondary: "#7d562d", "inverse-primary": "#a5d0b9", "primary-fixed": "#c1ecd4", "on-surface": "#191c1d", "surface-container-highest": "#e1e3e4", "surface-container-lowest": "#ffffff", "on-primary-fixed": "#002114", "on-primary": "#ffffff", "on-error-container": "#93000a", "inverse-surface": "#2e3132", "tertiary-fixed": "#b1f0ce", "on-background": "#191c1d", "surface-tint": "#3f6653", "on-tertiary-container": "#75b393", "outline-variant": "#c1c8c2", surface: "#f8f9fa", primary: "#012d1d", "on-secondary-fixed": "#2c1600", "on-tertiary-fixed": "#002114", error: "#ba1a1a", "on-primary-fixed-variant": "#274e3d", "on-secondary-container": "#7a532a", "primary-fixed-dim": "#a5d0b9", "secondary-fixed-dim": "#f0bd8b", "primary-container": "#1b4332", "tertiary-container": "#00452e", "tertiary-fixed-dim": "#95d4b3", "on-secondary": "#ffffff", "on-secondary-fixed-variant": "#623f18", "surface-container-low": "#f3f4f5", background: "#f8f9fa", "on-error": "#ffffff", "surface-bright": "#f8f9fa", "on-surface-variant": "#414844", "surface-variant": "#e1e3e4", "secondary-container": "#ffca98", "surface-container-high": "#e7e8e9", "error-container": "#ffdad6", "on-primary-container": "#86af99", "inverse-on-surface": "#f0f1f2", tertiary: "#002d1c", "secondary-fixed": "#ffdcbd"}, borderRadius: {DEFAULT: "0.25rem", lg: "0.5rem", xl: "0.75rem", full: "9999px"}, spacing: {base: "8px", "container-padding": "20px", gutter: "16px", "stack-md": "24px", "stack-sm": "12px", "touch-target": "48px"}, fontFamily: {"headline-md": ["Hanken Grotesk"], "label-md": ["JetBrains Mono"], "body-md": ["Inter"], "display-lg": ["Hanken Grotesk"], "headline-lg-mobile": ["Hanken Grotesk"], "body-lg": ["Inter"], "headline-sm": ["Hanken Grotesk"], headline: ["Hanken Grotesk"], display: ["Hanken Grotesk"], body: ["Inter"], label: ["Jetbrains Mono"]}, fontSize: {"headline-md": ["24px", {lineHeight: "32px", fontWeight: "600"}], "label-md": ["14px", {lineHeight: "20px", letterSpacing: "0.02em", fontWeight: "500"}], "body-md": ["16px", {lineHeight: "24px", fontWeight: "400"}], "display-lg": ["32px", {lineHeight: "40px", fontWeight: "700"}], "headline-lg-mobile": ["28px", {lineHeight: "36px", fontWeight: "700"}], "body-lg": ["18px", {lineHeight: "28px", fontWeight: "400"}], "headline-sm": ["20px", {lineHeight: "28px", fontWeight: "600"}]}}}};</script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        .camera-overlay {
+            clip-path: path('M12,2 C12,2 4,10 4,16 C4,20.4 7.6,24 12,24 C16.4,24 20,20.4 20,16 C20,10 12,2 12,2 Z');
+            transform: scale(15);
+            transform-origin: center;
+        }
+
+        .viewfinder-mask {
+            background: rgba(0, 0, 0, 0.4);
+            mask-image: radial-gradient(circle, transparent 150px, black 150px);
+            -webkit-mask-image: radial-gradient(circle, transparent 150px, black 150px);
+        }
+
+        .leaf-silhouette {
+            border: 2px dashed rgba(255, 255, 255, 0.8);
+            width: 260px;
+            height: 320px;
+            border-radius: 50% 0 50% 0;
+            transform: rotate(-15deg);
+        }
+
+        .shutter-ring {
+            border: 4px solid white;
+            transition: all 0.2s ease;
+        }
+        
+        .shutter-ring:active {
+            transform: scale(0.9);
+            border-width: 8px;
+        }
+
+        .scan-line {
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #a5d0b9, transparent);
+            box-shadow: 0 0 15px #a5d0b9;
+            animation: scan 3s ease-in-out infinite;
+        }
+
+        @keyframes scan {
+            0%, 100% { top: 20%; opacity: 0; }
+            10%, 90% { opacity: 1; }
+            50% { top: 80%; }
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface font-body-md overflow-hidden antialiased h-screen flex flex-col">
+<!-- Top App Bar (Shared Component Reference) -->
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-container-padding h-touch-target bg-surface dark:bg-inverse-surface shadow-sm border-b border-outline-variant dark:border-outline">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 flex items-center justify-center"><img src="https://lh3.googleusercontent.com/aida-public/AB6AXuBbk19lNTgfkoX-Q3XqQmCFaQAt0VSm4GjqFl4BGYHyGEPGPYEotwd8jPhNC9p9LVgzD2htM3ZsP0bQQitkFJkWQ3cQe4BQW6Cn2hduxGrBWvia7o1rcj8kk1VOUXcul8zo2vWdhkep488OVbYjKequh7XMgJU7oDjWvjbSkeM0P8dgFZRz9S9aAtbL9QEhSBerSNBHm11jzwcc4J7cZXZ11C6m6JEXGK1Bwhdw_jN9RxeZWDR_30HW1GMCfb41dCTTqWle3OPPCY0" alt="DoctorMaiz Logo" class="w-full h-full object-contain"></div>
+<h1 class="font-headline-sm text-headline-sm font-bold text-primary dark:text-primary-fixed">DoctorMaiz</h1>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 rounded-full hover:bg-surface-container transition-colors duration-150">
+
+</button>
+</div>
+</header>
+<!-- Main Viewfinder Section -->
+<main class="flex-1 relative mt-touch-target mb-[72px] overflow-hidden bg-black">
+<!-- Live Camera View Simulation -->
+<div class="absolute inset-0 z-0">
+<div class="w-full h-full bg-cover bg-center opacity-80" data-alt="A macro close-up shot of a vibrant green corn leaf in a sunny field, showing detailed veins and some slight yellow spotting from a pest. The lighting is bright, natural sunlight, creating a crisp and high-contrast field environment typical of agricultural research." style="background-image: url(&quot;https://lh3.googleusercontent.com/aida-public/AB6AXuDjEtWMKAfkmkdE7-lZapc46Ut2ikJ5e9ENGxG6716y5P7A-J83ALyx0GgToWOGXaS5za5p5Q7XdVQNyK75TQjK8KXDQd7k9dUZa-ufy_Uf8Dt5ihOeQdBuB14P8HPaZZ9zIsg1UN6LmOy29btAFCVd69ls2RC8Y3X6QEE__dnmJJnbqf6PFycDP83T_YHd9giASZ5SieLWQ5vB6PiBtYhuMYuwsiJGakYzJ4kyFSBQKSn200rReCzhNN1pVJiU5uQaM-6aIrFDaOE&quot;);"></div>
+</div>
+<!-- Viewfinder Overlay & Mask -->
+<div class="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+<!-- Leaf Frame for Alignment -->
+<div class="relative flex items-center justify-center">
+<div class="leaf-silhouette flex items-center justify-center">
+<div class="scan-line absolute w-full left-0"></div>
+</div>
+<!-- Alignment Guides (Corners) -->
+<div class="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-white/60"></div>
+<div class="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-white/60"></div>
+<div class="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-white/60"></div>
+<div class="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-white/60"></div>
+</div>
+</div>
+<!-- Floating UI Elements on Viewfinder -->
+<div class="absolute top-6 right-container-padding z-20 flex flex-col gap-4">
+<button class="w-12 h-12 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center text-white border border-white/20 active:scale-95 transition-transform" id="flashToggle" onclick="toggleFlash()">
+<span class="material-symbols-outlined" id="flashIcon">flash_off</span>
+</button>
+<button class="w-12 h-12 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center text-white border border-white/20 active:scale-95 transition-transform">
+<span class="material-symbols-outlined">flip_camera_android</span>
+</button>
+</div>
+<!-- Instruction Tip -->
+<div class="absolute bottom-32 left-0 right-0 z-20 flex justify-center">
+<div class="bg-black/60 backdrop-blur-lg px-6 py-2 rounded-full border border-white/10">
+<p class="font-label-md text-label-md text-white">Coloque la hoja en el centro</p>
+</div>
+</div>
+<!-- Action Controls -->
+<div class="absolute bottom-0 left-0 right-0 z-20 h-32 bg-gradient-to-t from-black/80 to-transparent flex items-center justify-around px-container-padding">
+<!-- Gallery Upload -->
+<button class="flex flex-col items-center gap-1 text-white group" onclick="simulateUpload()">
+<div class="w-12 h-12 rounded-xl border border-white/40 flex items-center justify-center group-active:scale-95 transition-transform overflow-hidden bg-black/20">
+<span class="material-symbols-outlined">photo_library</span>
+</div>
+<span class="font-label-md text-[10px] uppercase tracking-widest opacity-80">Galería</span>
+</button>
+<!-- Shutter Button -->
+<div class="relative">
+<button class="shutter-ring w-20 h-20 rounded-full p-1 bg-transparent flex items-center justify-center outline-none">
+<div class="w-full h-full bg-white rounded-full"></div>
+</button>
+</div>
+<!-- Diagnostics Mode Toggle -->
+<button class="flex flex-col items-center gap-1 text-white group">
+<div class="w-12 h-12 rounded-xl border border-white/40 flex items-center justify-center group-active:scale-95 transition-transform bg-black/20">
+<span class="material-symbols-outlined">tune</span>
+</div>
+<span class="font-label-md text-[10px] uppercase tracking-widest opacity-80">Manual</span>
+</button>
+</div>
+</main>
+<!-- Bottom Nav Bar (Shared Component Reference) -->
+<nav class="fixed bottom-0 w-full z-50 h-[72px] pb-safe bg-surface dark:bg-inverse-surface border-t border-outline-variant dark:border-outline shadow-lg flex justify-around items-center"><a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-surface-variant px-spacing-stack-md py-1 hover:bg-surface-container-high transition-colors duration-150 opacity-70" href="#"><span class="material-symbols-outlined" data-icon="home" style="font-variation-settings: &quot;FILL&quot; 0, &quot;wght&quot; 600, &quot;GRAD&quot; 0, &quot;opsz&quot; 24; font-size: 28px;">home</span><span class="font-label-md text-label-md">Inicio</span></a><a class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-full px-spacing-stack-md py-1 scale-95 transition-transform duration-100 ease-in-out px-6 py-2 shadow-md text-white" href="#"><span class="material-symbols-outlined" data-icon="center_focus_strong" style="font-variation-settings: &quot;FILL&quot; 1, &quot;wght&quot; 700, &quot;GRAD&quot; 0, &quot;opsz&quot; 24; font-size: 28px;">center_focus_strong</span><span class="font-label-md text-label-md font-bold">Escanear</span></a><a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-surface-variant px-spacing-stack-md py-1 hover:bg-surface-container-high transition-colors duration-150 opacity-70" href="#"><span class="material-symbols-outlined" data-icon="history" style="font-variation-settings: &quot;FILL&quot; 0, &quot;wght&quot; 600, &quot;GRAD&quot; 0, &quot;opsz&quot; 24; font-size: 28px;">history</span><span class="font-label-md text-label-md">Historial</span></a><a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-surface-variant px-spacing-stack-md py-1 hover:bg-surface-container-high transition-colors duration-150 opacity-70" href="#"><span class="material-symbols-outlined" data-icon="person" style="font-variation-settings: 'FILL' 0, 'wght' 600, 'GRAD' 0, 'opsz' 24; font-size: 28px;">person</span><span class="font-label-md text-label-md">Perfil</span></a></nav>
+<!-- Interactive Scripts -->
+<script>
+        let isFlashOn = false;
+        const flashIcon = document.getElementById('flashIcon');
+        const flashBtn = document.getElementById('flashToggle');
+
+        function toggleFlash() {
+            isFlashOn = !isFlashOn;
+            if (isFlashOn) {
+                flashIcon.textContent = 'flash_on';
+                flashIcon.style.fontVariationSettings = "'FILL' 1";
+                flashBtn.classList.remove('bg-black/30');
+                flashBtn.classList.add('bg-primary-container', 'text-on-primary-container');
+            } else {
+                flashIcon.textContent = 'flash_off';
+                flashIcon.style.fontVariationSettings = "'FILL' 0";
+                flashBtn.classList.add('bg-black/30');
+                flashBtn.classList.remove('bg-primary-container', 'text-on-primary-container');
+            }
+        }
+
+        function simulateUpload() {
+            // Visual feedback for interaction
+            console.log('Opening native file picker...');
+        }
+
+        // Haptic feel for buttons
+        document.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('touchstart', () => {
+                if (window.navigator.vibrate) {
+                    window.navigator.vibrate(10);
+                }
+            });
+        });
+    </script>
+
+
+
+
+
+
+
+
+</body></html>

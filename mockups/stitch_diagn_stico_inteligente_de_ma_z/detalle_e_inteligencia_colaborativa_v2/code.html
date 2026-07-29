@@ -1,0 +1,264 @@
+<!DOCTYPE html><html class="light" lang="es"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>DoctorMaiz - Detalle e Inteligencia Colaborativa</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@600;700&amp;family=Inter:wght@400&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-tertiary": "#ffffff",
+                        "surface-variant": "#e1e3e4",
+                        "on-primary-fixed": "#002114",
+                        "background": "#f8f9fa",
+                        "on-tertiary-container": "#75b393",
+                        "primary-fixed-dim": "#a5d0b9",
+                        "outline": "#717973",
+                        "error": "#ba1a1a",
+                        "outline-variant": "#c1c8c2",
+                        "surface-container-low": "#f3f4f5",
+                        "secondary-container": "#ffca98",
+                        "primary": "#012d1d",
+                        "surface-container": "#edeeef",
+                        "on-tertiary-fixed-variant": "#0e5138",
+                        "surface-tint": "#3f6653",
+                        "on-error": "#ffffff",
+                        "surface-container-highest": "#e1e3e4",
+                        "inverse-on-surface": "#f0f1f2",
+                        "surface-container-lowest": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "secondary-fixed-dim": "#f0bd8b",
+                        "tertiary-fixed": "#b1f0ce",
+                        "surface-container-high": "#e7e8e9",
+                        "inverse-primary": "#a5d0b9",
+                        "surface-bright": "#f8f9fa",
+                        "surface": "#f8f9fa",
+                        "on-surface-variant": "#414844",
+                        "on-background": "#191c1d",
+                        "primary-container": "#1b4332",
+                        "tertiary": "#002d1c",
+                        "on-primary-fixed-variant": "#274e3d",
+                        "tertiary-fixed-dim": "#95d4b3",
+                        "tertiary-container": "#00452e",
+                        "on-tertiary-fixed": "#002114",
+                        "on-primary-container": "#86af99",
+                        "surface-dim": "#d9dadb",
+                        "on-surface": "#191c1d",
+                        "secondary-fixed": "#ffdcbd",
+                        "inverse-surface": "#2e3132",
+                        "on-primary": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "on-secondary-fixed": "#2c1600",
+                        "primary-fixed": "#c1ecd4",
+                        "on-secondary-fixed-variant": "#623f18",
+                        "on-secondary-container": "#7a532a",
+                        "on-error-container": "#93000a",
+                        "secondary": "#7d562d"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "touch-target": "48px",
+                        "stack-md": "24px",
+                        "stack-sm": "12px",
+                        "container-padding": "20px",
+                        "gutter": "16px",
+                        "base": "8px"
+                    },
+                    "fontFamily": {
+                        "headline-sm": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "body-lg": ["Inter"],
+                        "headline-lg-mobile": ["Hanken Grotesk"],
+                        "display-lg": ["Hanken Grotesk"],
+                        "label-md": ["JetBrains Mono"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-sm": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "700" }],
+                        "display-lg": ["32px", { "lineHeight": "40px", "fontWeight": "700" }],
+                        "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.02em", "fontWeight": "500" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.fill-icon {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md antialiased min-h-screen flex flex-col md:pb-0 pb-[80px]"> <!-- Added pb to account for bottom nav -->
+<!-- TopAppBar (from JSON) -->
+<header class="bg-surface dark:bg-surface shadow-sm docked full-width top-0 z-40 sticky">
+<div class="flex justify-between items-center px-container-padding w-full h-touch-target">
+<!-- Leading Icon -->
+<button aria-label="Back" class="text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-container-high transition-colors active:scale-95 duration-100 p-2 rounded-full flex items-center justify-center h-touch-target w-touch-target">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+</button>
+<!-- Brand Logo/Headline -->
+<div class="flex items-center gap-2">
+<img alt="DoctorMaiz Logo" class="h-8 w-8 object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCFlXKxs88Uc9E6vCyYbKViHftBPloN_LLpaMTX68R3AIc0Q5o1QH8eIylmgpyyn0e2dpAcOnbq1_N0cI1JAwORcrplGfqEsSIjCHeLXclsaoczD49s9avIDsWcFdC7CLNo2ONHBmOJokvnYuR9Zg907jWziYNSAX66GuOQK8hM_QGe2qzKivXrD2eWCJYh4BWoTH4tEYejSvpncI-2VMAP--V0FbH6shic-lVrogFblINnKNiBqZ9EeIxNoxZMFUpW9mCBOZvtCA4">
+<h1 class="font-headline-md text-headline-md text-primary dark:text-primary-fixed-dim font-bold tracking-tight">DoctorMaiz</h1>
+</div>
+<!-- Trailing Icon -->
+<button aria-label="Sync Status" class="text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-container-high transition-colors active:scale-95 duration-100 p-2 rounded-full flex items-center justify-center h-touch-target w-touch-target">
+<span class="material-symbols-outlined text-secondary" data-icon="cloud_sync" data-weight="fill" style="font-variation-settings: 'FILL' 1;">cloud_sync</span>
+</button>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-grow px-container-padding py-stack-md flex flex-col gap-stack-md max-w-3xl mx-auto w-full">
+<!-- Top Section: Detalle del Diagnóstico -->
+<section class="bg-surface-container-lowest rounded-xl shadow-sm border border-surface-container overflow-hidden">
+<!-- Imagen Escaneada -->
+<div class="relative h-64 w-full bg-surface-variant">
+<img alt="Hoja de maíz escaneada" class="w-full h-full object-cover" data-alt="A close-up, high-resolution photograph of a mature maize leaf showing clear signs of common rust (Roya Común). The leaf is textured with prominent veins, and the rust appears as small, reddish-brown pustules scattered across the bright green surface. Shot in bright, natural daylight in a field setting, shallow depth of field focusing sharply on the rust spots, professional agricultural photography." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBespfAntwnNKiODymv9ihFcnnZOyShqCQ1Pke5sXkMeU90KhhrAvhMp_gFvr56DyzIx8VvvkgXbXf6VfccD8kZMS6OZZ-gPxLjgWvfb3N2LF7tuDW2tKrCKNwqNrPD5wRTtgxaelUmU6sRRwUr52FYiQkLjATkgllsq_0IphgGfboUSXW32L5Dvo4-AaDnak4Syhc0nhqj5qHZmT9M9BWOK4XrVh9VthD0MJ44WRXMJQyBuCRlCEovi7U1z0RUr1k_3e-o2_joHA4">
+<!-- Status Strip (Yellow for caution/disease) -->
+<div class="absolute top-0 left-0 w-full h-1 bg-[#fbc02d]"></div>
+</div>
+<div class="p-stack-sm flex flex-col gap-base">
+<div class="flex justify-between items-start">
+<div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface font-semibold">Roya Común</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Puccinia sorghi</p>
+</div>
+<!-- Confidence Score Chip -->
+<div class="bg-surface-container-high px-3 py-1.5 rounded-full flex items-center gap-1">
+<span class="material-symbols-outlined text-sm text-primary" data-icon="memory">memory</span>
+<span class="font-label-md text-label-md text-primary">82% Confianza</span>
+</div>
+</div>
+<!-- Agronomic Metrics Grid -->
+<div class="grid grid-cols-2 gap-gutter mt-2">
+<div class="bg-surface-container-low p-3 rounded-lg flex items-center gap-3">
+<span class="material-symbols-outlined text-[#7d562d]" data-icon="water_drop">water_drop</span>
+<div>
+<span class="font-label-md text-label-md text-on-surface-variant block text-xs">Humedad Lote</span>
+<span class="font-body-md text-body-md font-semibold">78%</span>
+</div>
+</div>
+<div class="bg-surface-container-low p-3 rounded-lg flex items-center gap-3">
+<span class="material-symbols-outlined text-[#3f6653]" data-icon="thermostat">thermostat</span>
+<div>
+<span class="font-label-md text-label-md text-on-surface-variant block text-xs">Temp. Media</span>
+<span class="font-body-md text-body-md font-semibold">24°C</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Inteligencia Colaborativa Section -->
+<section class="bg-secondary-container/20 rounded-xl p-stack-sm border border-secondary-container flex flex-col gap-stack-sm">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary" data-icon="psychology_alt">psychology_alt</span>
+<h3 class="font-headline-sm text-headline-sm text-on-secondary-container font-semibold">¿Dudas con el resultado?</h3>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                Si el diagnóstico automático no coincide con su observación en campo, reporte un posible falso positivo para mejorar la precisión del modelo.
+            </p>
+<!-- Formulario de Reporte -->
+<div class="flex flex-col gap-base">
+<label class="font-label-md text-label-md text-on-surface" for="observaciones">Reportar Falso Positivo (Opcional)</label>
+<textarea class="w-full bg-surface-container-lowest border-outline-variant text-on-surface rounded-lg p-3 focus:ring-primary focus:border-primary font-body-md resize-none shadow-sm" id="observaciones" placeholder="Ej: Las pústulas parecen diferentes, o hay presencia de insectos no detectados..." rows="3"></textarea><div class="flex flex-col gap-base mt-2"><label class="font-label-md text-label-md text-on-surface" for="tipo-problema">¿Qué observó en campo?</label><select class="w-full bg-surface-container-lowest border-outline-variant text-on-surface rounded-lg p-3 focus:ring-primary focus:border-primary font-body-md shadow-sm" id="tipo-problema"><option value="">Seleccione una opción...</option><option value="roya_blanca">Roya Blanca</option><option value="tizon_foliar">Tizón Foliar</option><option value="gusano_cogollero">Gusano Cogollero</option><option value="otro">Otro...</option></select></div><div class="flex flex-col gap-base mt-2 hidden" id="otro-especificar-container"><label class="font-label-md text-label-md text-on-surface" for="otro-especificar">Especifique el tipo</label><input class="w-full bg-surface-container-lowest border-outline-variant text-on-surface rounded-lg p-3 focus:ring-primary focus:border-primary font-body-md shadow-sm" id="otro-especificar" placeholder="Nombre de la plaga o enfermedad" type="text"></div><button class="w-full bg-primary text-on-primary font-label-md text-label-md h-touch-target rounded-full flex items-center justify-center gap-2 shadow-sm hover:bg-primary-container hover:text-on-primary-container transition-all active:scale-95 duration-100 mt-4"><span class="material-symbols-outlined" data-icon="send">send</span>Enviar Retroalimentación</button><script>document.getElementById('tipo-problema').addEventListener('change', function() { const container = document.getElementById('otro-especificar-container'); if (this.value === 'otro') { container.classList.remove('hidden'); } else { container.classList.add('hidden'); } });</script>
+</div>
+<!-- Botón Principal -->
+<p class="text-xs text-center text-on-surface-variant mt-1 font-body-md">Un agrónomo humano revisará la imagen y enviará un veredicto final.</p>
+<!-- Estado de Validación (Simulado como pendiente) -->
+<div class="mt-4 bg-surface-container p-3 rounded-lg border border-surface-dim flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary animate-pulse" data-icon="pending">pending</span>
+<span class="font-label-md text-label-md text-on-surface font-semibold">Estado de Validación</span>
+</div>
+<span class="bg-secondary-container text-on-secondary-container px-2 py-1 rounded text-xs font-label-md font-bold uppercase tracking-wider">Pendiente</span>
+</div>
+</section>
+<!-- Historial de Interacción (Timeline) -->
+<section class="bg-surface-container-lowest rounded-xl p-stack-sm shadow-sm border border-surface-container">
+<h3 class="font-headline-sm text-headline-sm text-on-surface mb-stack-sm font-semibold">Historial del Registro</h3>
+<div class="relative pl-6 space-y-6">
+<!-- Línea conectora -->
+<div class="absolute left-[11px] top-2 bottom-2 w-0.5 bg-surface-variant z-0"></div>
+<!-- Event 1 -->
+<div class="relative z-10 flex gap-4 items-start">
+<div class="w-6 h-6 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center shrink-0 mt-0.5 ring-4 ring-surface-container-lowest">
+<span class="material-symbols-outlined text-[14px]" data-icon="memory">memory</span>
+</div>
+<div>
+<p class="font-label-md text-label-md font-bold text-on-surface">IA diagnosticó Roya Común</p>
+<p class="text-xs text-on-surface-variant font-body-md mt-0.5">Hoy, 08:30 AM</p>
+</div>
+</div>
+<!-- Event 2 -->
+<div class="relative z-10 flex gap-4 items-start">
+<div class="w-6 h-6 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center shrink-0 mt-0.5 ring-4 ring-surface-container-lowest">
+<span class="material-symbols-outlined text-[14px]" data-icon="report">report</span>
+</div>
+<div>
+<p class="font-label-md text-label-md font-bold text-on-surface">Agricultor reportó duda</p>
+<p class="text-xs text-on-surface-variant font-body-md mt-0.5">Hoy, 08:35 AM</p>
+</div>
+</div>
+<!-- Event 3 (Pendiente) -->
+<div class="relative z-10 flex gap-4 items-start opacity-60">
+<div class="w-6 h-6 rounded-full bg-surface-variant text-on-surface-variant flex items-center justify-center shrink-0 mt-0.5 ring-4 ring-surface-container-lowest">
+<span class="material-symbols-outlined text-[14px]" data-icon="hourglass_empty">hourglass_empty</span>
+</div>
+<div>
+<p class="font-label-md text-label-md font-bold text-on-surface">Esperando revisión de experto</p>
+<p class="text-xs text-on-surface-variant font-body-md mt-0.5">En proceso...</p>
+</div>
+</div>
+</div>
+</section>
+<div class="h-10"></div> <!-- Spacer for scrolling -->
+</main>
+<!-- BottomNavBar (from JSON) - Only visible on md:hidden -->
+<!-- The user is viewing details of a PAST record, so "Historial" is the active tab -->
+<nav class="fixed bottom-0 w-full z-50 rounded-t-xl shadow-lg bg-surface-container dark:bg-surface-container-low flex justify-around items-center px-4 py-2 md:hidden">
+<!-- Inicio -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-highest transition-all active:scale-90 duration-200 p-2 rounded-lg h-touch-target min-w-[64px]" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="home">home</span>
+<span class="font-label-md text-label-md text-[10px]">Inicio</span>
+</a>
+<!-- Escanear -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-highest transition-all active:scale-90 duration-200 p-2 rounded-lg h-touch-target min-w-[64px]" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="document_scanner">document_scanner</span>
+<span class="font-label-md text-label-md text-[10px]">Escanear</span>
+</a>
+<!-- Historial (ACTIVE) -->
+<a class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-full px-4 py-1 hover:bg-surface-container-highest transition-all active:scale-90 duration-200 h-touch-target min-w-[64px]" href="#">
+<span class="material-symbols-outlined mb-1 fill-icon" data-icon="history" data-weight="fill">history</span>
+<span class="font-label-md text-label-md text-[10px] font-bold">Historial</span>
+</a>
+<!-- Ajustes -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-highest transition-all active:scale-90 duration-200 p-2 rounded-lg h-touch-target min-w-[64px]" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="person">person</span>
+<span class="font-label-md text-label-md text-[10px]">Perfil</span>
+</a>
+</nav>
+<!-- Desktop Navigation Alternative (Hidden on Mobile, Visible on md+) -->
+<!-- Not strictly required by prompt but good practice based on instructions -->
+<div class="hidden md:flex flex-col fixed top-1/2 -translate-y-1/2 right-4 gap-4 z-50">
+<!-- Simplified desktop nav just to show awareness of responsive pivot -->
+</div>
+
+
+</body></html>

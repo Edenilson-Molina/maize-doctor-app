@@ -1,0 +1,224 @@
+<!DOCTYPE html><html class="light" lang="es"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Recuperar Contraseña | DoctorMaiz</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700&amp;family=Inter:wght@400;500&amp;family=JetBrains+Mono:wght@500&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@100..900&amp;family=Inter:wght@100..900&amp;family=JetBrains+Mono:wght@100..900&amp;display=swap" rel="stylesheet">
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8f9fa;
+        }
+        .bg-maiz-texture {
+            background-image: radial-gradient(circle at 2px 2px, #e1e3e4 1px, transparent 0);
+            background-size: 24px 24px;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary": "#002d1c",
+                        "surface-bright": "#f8f9fa",
+                        "on-primary-container": "#86af99",
+                        "surface": "#f8f9fa",
+                        "on-secondary": "#ffffff",
+                        "outline-variant": "#c1c8c2",
+                        "surface-container-low": "#f3f4f5",
+                        "on-secondary-fixed-variant": "#623f18",
+                        "surface-container-high": "#e7e8e9",
+                        "primary-fixed-dim": "#a5d0b9",
+                        "on-surface": "#191c1d",
+                        "on-secondary-container": "#7a532a",
+                        "tertiary-fixed-dim": "#95d4b3",
+                        "on-background": "#191c1d",
+                        "surface-container-highest": "#e1e3e4",
+                        "primary": "#012d1d",
+                        "error": "#ba1a1a",
+                        "surface-dim": "#d9dadb",
+                        "surface-tint": "#3f6653",
+                        "outline": "#717973",
+                        "on-secondary-fixed": "#2c1600",
+                        "primary-container": "#1b4332",
+                        "error-container": "#ffdad6",
+                        "secondary-container": "#ffca98",
+                        "surface-container": "#edeeef",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary": "#7d562d",
+                        "primary-fixed": "#c1ecd4",
+                        "on-error": "#ffffff",
+                        "secondary-fixed": "#ffdcbd",
+                        "on-tertiary-fixed": "#002114",
+                        "surface-variant": "#e1e3e4",
+                        "on-error-container": "#93000a",
+                        "inverse-on-surface": "#f0f1f2",
+                        "background": "#f8f9fa",
+                        "on-primary-fixed": "#002114",
+                        "secondary-fixed-dim": "#f0bd8b",
+                        "tertiary-container": "#00452e",
+                        "inverse-primary": "#a5d0b9",
+                        "on-tertiary-fixed-variant": "#0e5138",
+                        "on-tertiary": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "tertiary-fixed": "#b1f0ce",
+                        "inverse-surface": "#2e3132",
+                        "on-surface-variant": "#414844",
+                        "on-tertiary-container": "#75b393",
+                        "on-primary-fixed-variant": "#274e3d"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "16px",
+                        "container-padding": "20px",
+                        "base": "8px",
+                        "touch-target": "48px",
+                        "stack-md": "24px",
+                        "stack-sm": "12px"
+                    },
+                    "fontFamily": {
+                        "headline-sm": ["Hanken Grotesk"],
+                        "body-lg": ["Inter"],
+                        "label-md": ["JetBrains Mono"],
+                        "headline-lg-mobile": ["Hanken Grotesk"],
+                        "display-lg": ["Hanken Grotesk"],
+                        "body-md": ["Inter"],
+                        "headline-md": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "headline-sm": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                        "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                        "headline-lg-mobile": ["28px", {"lineHeight": "36px", "fontWeight": "700"}],
+                        "display-lg": ["32px", {"lineHeight": "40px", "fontWeight": "700"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+            @keyframes shimmer {
+                100% { transform: translateX(100%); }
+            }
+        </style></head>
+<body class="min-h-screen bg-surface flex flex-col items-center justify-center p-container-padding relative overflow-hidden bg-maiz-texture">
+<!-- Top AppBar (Simplified for Transactional Page as per instructions - Navigation is suppressed) -->
+<header class="fixed top-0 left-0 w-full h-touch-target flex items-center px-container-padding bg-surface/80 backdrop-blur-md z-50">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" data-icon="agriculture">agriculture</span>
+<span class="font-headline-md text-headline-md text-primary tracking-tight">DoctorMaiz</span>
+</div>
+</header>
+<!-- Content Canvas -->
+<main class="w-full max-w-[440px] flex flex-col items-center relative z-10 animate-in fade-in duration-700 slide-in-from-bottom-4">
+<!-- Logo Section -->
+<div class="mb-stack-md flex justify-center mt-stack-md">
+<div class="w-24 h-24 rounded-xl overflow-hidden shadow-sm border border-outline-variant/30 bg-surface-container-lowest p-2 flex items-center justify-center">
+<img alt="DoctorMaiz Logo" class="w-full h-full object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCIlUYIryQwvIn6JZVwiinZKC2uY2xnQZr5LuwlMCW1hHPkjLSH7yIQAeabQTVzyN4zVTZx6EzM7Nl7mPNF_67yqFM73j3TC0f_nvgFZU-sj-A6n2APVfDwQoAIVE6M3t6SGpmGvZsE0tb7RERPi3-cwdf9nEtMWHk_IVe0wJEQls-wYLdlqgzDKEWxN8ba5nD0evNoox-UVC_pHIyQraimCwhK-66wO2Pr5j4ohN17UtY9H42sEwRFvstFRwLn4G_Z6w">
+</div>
+</div>
+<!-- Identity & Header -->
+<div class="text-center mb-stack-md">
+<h1 class="font-display-lg text-display-lg text-primary mb-2">¿Olvidaste tu contraseña?</h1>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-[320px] mx-auto">
+                No te preocupes. Ingresa tu correo electrónico y te enviaremos las instrucciones para restablecerla.
+            </p>
+</div>
+<!-- Form Card -->
+<section class="w-full bg-surface-container-lowest rounded-xl shadow-lg p-8 border border-outline-variant/20">
+<form class="space-y-6" id="recoveryForm">
+<!-- Input Group -->
+<div class="space-y-2">
+<label class="font-label-md text-label-md text-on-surface-variant flex items-center gap-2" for="email">
+<span class="material-symbols-outlined text-[18px]">mail</span>
+                        CORREO ELECTRÓNICO
+                    </label>
+<input class="w-full h-touch-target px-4 rounded-lg border-2 border-outline-variant focus:border-primary focus:ring-0 transition-all font-body-md bg-surface text-on-surface placeholder:text-outline" id="email" placeholder="ejemplo@agromail.com" required="" type="email">
+</div>
+<!-- Action Button -->
+<button class="group relative w-full h-touch-target bg-primary-container text-on-primary-container font-headline-sm text-headline-sm rounded-lg shadow-sm active:scale-95 transition-all duration-200 overflow-hidden flex items-center justify-center gap-2" type="submit">
+<span id="buttonText" class="">Enviar instrucciones</span>
+<span class="material-symbols-outlined group-hover:translate-x-1 transition-transform" data-icon="send">send</span>
+<!-- Atmospheric shine effect -->
+<div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-[shimmer_2s_infinite]"></div>
+</button>
+</form>
+<!-- Success State (Hidden by default) -->
+<div class="hidden text-center space-y-4 py-4" id="successMessage">
+<div class="w-16 h-16 bg-tertiary-fixed rounded-full flex items-center justify-center mx-auto text-on-tertiary-fixed-variant">
+<span class="material-symbols-outlined text-4xl" data-weight="fill">check_circle</span>
+</div>
+<div>
+<h3 class="font-headline-sm text-headline-sm text-primary">¡Correo enviado!</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mt-2">
+                        Revisa tu bandeja de entrada (y la carpeta de spam) para continuar.
+                    </p>
+</div>
+</div>
+</section>
+<!-- Navigation Link -->
+<div class="mt-stack-md">
+<a class="flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors font-label-md text-label-md py-2 group" href="#">
+<span class="material-symbols-outlined group-hover:-translate-x-1 transition-transform" data-icon="arrow_back">arrow_back</span>
+                VOLVER AL INICIO DE SESIÓN
+            </a>
+</div>
+</main>
+<!-- Footer Decoration / Branding -->
+<footer class="fixed bottom-0 w-full py-6 px-container-padding flex justify-between items-center opacity-60 pointer-events-none">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[20px]" data-icon="sync">sync</span>
+<span class="font-label-md text-[12px]">SYNC ACTIVE</span>
+</div>
+<div class="font-label-md text-[12px] uppercase tracking-widest">
+            Robusta Precision v2.4
+        </div>
+</footer>
+<!-- Offline Status Indicator (Atmospheric) -->
+<div class="fixed top-20 right-4 px-3 py-1 bg-secondary-container text-on-secondary-container rounded-full shadow-sm flex items-center gap-2 border border-secondary/20 z-40">
+<span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+<span class="font-label-md text-[12px]">Field Ready</span>
+</div>
+<script>
+        document.getElementById('recoveryForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const btn = this.querySelector('button');
+            const btnText = document.getElementById('buttonText');
+            const successMsg = document.getElementById('successMessage');
+            
+            // Loading state
+            btn.classList.add('opacity-80', 'cursor-not-allowed');
+            btnText.innerText = 'Enviando...';
+            
+            setTimeout(() => {
+                this.classList.add('hidden');
+                successMsg.classList.remove('hidden');
+                successMsg.classList.add('animate-in', 'zoom-in-95', 'fade-in', 'duration-500');
+            }, 1500);
+        });
+
+        // Keyframe for button shimmer
+        const style = document.createElement('style');
+        style.innerHTML = `
+            @keyframes shimmer {
+                100% { transform: translateX(100%); }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+
+
+</body></html>
