@@ -4,7 +4,7 @@ import { hasNativeModule, database } from '@/data/database';
 import { Q } from '@nozbe/watermelondb';
 import { DIAGNOSIS_MAP, type DiagnosisClass } from '@/content/diagnosis';
 import { Icon } from '@/components/Icon';
-import { getMockScans, type MockScan } from '@/data/mockData';
+import { getMockScans } from '@/data/mockData';
 import { useAuth } from '@/auth/AuthContext';
 
 interface ScanSummary {

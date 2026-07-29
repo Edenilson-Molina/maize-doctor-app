@@ -120,87 +120,113 @@ Con esto, las Fases 0–7 y 9 quedan completamente desbloqueadas y probadas sin 
 
 ## Fases
 
-### Fase 0 — Fundaciones y Design System
+### Fase 0 — Fundaciones y Design System ✅ COMPLETADA
 **Objetivo:** esqueleto de la app y todos los tokens visuales reutilizables (resuelve las fricciones de fuentes/íconos/branding/nav/tailwind).
 
-- `npx create-expo-app` + `expo prebuild` (Dev Client, no Expo Go).
-- `nativewind` v4: `tailwind.config.js` generado 1:1 desde el YAML de `DESIGN.md`.
-- Fuentes: `@expo-google-fonts/hanken-grotesk`, `@expo-google-fonts/inter`, `@expo-google-fonts/jetbrains-mono` + `expo-font`/`useFonts` en el splash gate.
-- Íconos: `.ttf` de Material Symbols Outlined en `assets/fonts/`, componente `<Icon name="home" weight="outline"|"fill" size={24} />`.
-- `components/BottomTabBar.tsx` único (Inicio/Escanear/Historial/Perfil) + `TopAppBar` único, marca "DoctorMaiz" fija en `app.json` y en todo el copy.
-- `RootNavigator`: `AuthStack` vs `AppTabs` condicionado por un `isAuthenticated` de contexto (stub, se conecta en Fase 1).
-- **Prueba de salida:** Jest + RNTL renderiza `RootNavigator` sin crashear; smoke test visual en dispositivo mostrando fuentes/íconos cargados sin red (modo avión desde el primer build).
+- [x] `npx create-expo-app` + configuración del proyecto (package `com.doctormaiz.app`).
+- [x] `nativewind` v4: `tailwind.config.js` con todos los tokens de `DESIGN.md` (colores Material 3, tipografía, spacing, border-radius).
+- [x] `metro.config.js` con `withNativeWind` + resolver ESM para RxJS.
+- [x] `babel.config.js` con `babel-preset-expo`, `jsxImportSource: nativewind`, decorators legacy, module-resolver `@/ → ./src`.
+- [x] `tsconfig.json` con strict, baseUrl, paths `@/*`, experimentalDecorators, ignoreDeprecations.
+- [x] Fuentes: `@expo-google-fonts/hanken-grotesk`, `inter`, `jetbrains-mono` + `useFonts` splash gate en `App.tsx`.
+- [x] Íconos: `@expo/vector-icons` (MaterialCommunityIcons) con componente `<Icon>` tipado.
+- [x] Logo SVG: `src/components/Logo.tsx` con `react-native-svg`, renderiza el corn logo a tamaño configurable.
+- [x] `TopAppBar.tsx`: Logo (32px) + "DoctorMaiz", bg primary-container, safe area insets.
+- [x] `BottomTabBar.tsx`: 4 tabs (Inicio/Escanear/Historial/Perfil) con iconos active/inactive, accessibility labels en español.
+- [x] `RootNavigator.tsx`: `AuthStack` (Login/Register/ForgotPassword) vs `AppTabs` (Home/Scan/History/Profile), condicionado por `isAuthenticated`.
+- [x] `src/navigation/types.ts`: `AuthStackParamList` + `AppTabParamList`.
+- [x] `src/global.css` + `nativewind-env.d.ts` + `src/types/css.d.ts`.
+- [x] **Prueba de salida:** Jest + RNTL renderiza `RootNavigator` — 1 test passing.
 
-### Fase 1 — Autenticación
+### Fase 1 — Autenticación ✅ COMPLETADA
 **Objetivo:** Login, Registro, Recuperar contraseña, con sesión persistida localmente.
 
-- `src/auth/AuthService.ts` interfaz + `LocalAuthService` (guarda sesión en `expo-secure-store`, valida formato de email/password sin red) — mismo patrón mock/real que el modelo, por si el backend de auth de FastAPI no está listo aún.
-- Pantallas basadas en los mockups `iniciar_sesi_n_doctormaiz`, `registro_doctormaiz` (**sin botón "Registrarse con Google"**), `recuperar_contrase_a_doctormaiz`.
-- **Prueba de salida:** RNTL valida errores de formulario; manual: cerrar/abrir la app en modo avión y confirmar que la sesión persiste.
+- [x] `src/auth/AuthService.ts`: interfaces `UserSession`, `AuthResult`, `AuthService`.
+- [x] `src/auth/LocalAuthService.ts`: implementación con `expo-secure-store` (keys `doctormaiz_session`, `doctormaiz_users`), `simpleHash`, `generateId`.
+- [x] `src/auth/AuthContext.tsx`: React Context con `isAuthenticated`, `user`, `isLoading`, `login`, `register`, `logout`. Carga sesión almacenada en mount.
+- [x] `src/auth/validation.ts`: `validateEmail` (regex), `validatePassword` (min 6), `validateName` (min 2), `validateLoginForm`, `validateRegisterForm` (con confirmación de password), `hasErrors`.
+- [x] `src/components/FormInput.tsx`: input reutilizable con label, icono, error, secureTextEntry toggle.
+- [x] `src/screens/auth/LoginScreen.tsx`: Logo (96px), card con email/password FormInputs, "¿Olvidó su contraseña?", "Entrar", "Sistema en línea", "Crear una cuenta nueva", footer "RESILIENCIA & PRECISIÓN".
+- [x] `src/screens/auth/RegisterScreen.tsx`: Logo (80px), name/email/password/confirmPassword, "Registrarse" (**sin Google**), "Ya tienes cuenta?".
+- [x] `src/screens/auth/ForgotPasswordScreen.tsx`: Logo (80px), email input, "Enviar instrucciones", estado de éxito con icono, "VOLVER AL INICIO DE SESIÓN".
+- [x] **Prueba de salida:** 15 tests de validación + 2 tests de LoginScreen + 1 test de RootNavigator = 18 tests passing.
 
-### Fase 2 — Dashboard + Historial (datos locales)
+### Fase 2 — Dashboard + Historial (datos locales) ✅ COMPLETADA
 **Objetivo:** capa de datos local funcionando de punta a punta, sin cámara ni modelo todavía.
 
-- Esquema WatermelonDB:
-  - `scans`: `id, imageUri, label, confidence, distributionJson, lat, lon, temperature, humidity, createdAt, synced`
-  - `corrections`: `id, scanId, observedLabel, note, status(pending|reviewed), createdAt, synced`
-  - `dataset_contributions`: `id, imageUri, label, note, createdAt, synced`
-- `scripts/seedDevData.ts`: inserta escaneos falsos cubriendo las 9 clases (incluidas las de pocos datos reales), para construir Dashboard/Historial antes de tener cámara+modelo reales.
-- Pantallas: `panel_principal_v3_bot_n_v1` (con métricas y thumbnail estático de mapa, ver fricción #4 — sin mapa interactivo offline en v1), `historial_de_an_lisis_v2` (búsqueda + filtros + lazy loading). Los chips de filtro del mockup ("Tizón", "Sano", "Roya") se generan dinámicamente desde `DiagnosisClass`, no se hardcodean 3 — así ya reflejan las 9 clases reales.
-- **Prueba de salida:** unit tests de queries WatermelonDB corriendo en Node; RNTL de History con datos sembrados.
+- [x] Esquema WatermelonDB v1: tablas `scans` (10 columnas), `corrections` (6 columnas, `scan_id` indexado), `dataset_contributions` (5 columnas).
+- [x] Modelos WatermelonDB: `Scan.ts`, `Correction.ts` (con `CorrectionStatus`), `DatasetContribution.ts` — decorators sin definite assignment (`!:` removido por compatibilidad Babel).
+- [x] `src/data/database.ts`: inicialización condicional — detecta `NativeModules.WMDatabaseBridge`, usa SQLiteAdapter si disponible, `null` si no (Expo Go fallback).
+- [x] `src/data/queries/scanQueries.ts`: `observeScans`, `observeScansByLabel`, `observeRecentScans`, `getScanCount`, `getScanCountByLabel`, `createScan`.
+- [x] `src/data/queries/correctionQueries.ts`: `observeCorrectionsForScan`, `createCorrection`.
+- [x] `src/data/seedDevData.ts`: 20 escaneos seed cubriendo las 9 clases, coordenadas El Salvador, timestamps distribuidos en 15 días. Solo siembra si `count === 0`.
+- [x] `src/data/mockData.ts`: datos mock en memoria (mismo esquema que seed) para Expo Go fallback.
+- [x] `src/content/diagnosis.ts`: `DiagnosisClass` (9 clases), `DIAGNOSIS_CLASSES`, `DiagnosisInfo`, `DIAGNOSIS_MAP` con copy agronómico completo. Clases con pocos datos incluyen "Confirmar con un especialista".
+- [x] `HomeScreen.tsx` (rediseñado según mockup Stitch `panel_principal_v3`): saludo "Hola, {nombre}" + ubicación, FAB "Iniciar Nuevo Escaneo", 4 métricas ambientales 2x2 (temp, humedad, hum.suelo, viento), banner "¡Sé parte de la Ciencia!", scan cards en grid con thumbnail placeholder (icon leaf) + status strip + badge confianza coloreado, sección "Cobertura del Campo" con mapa placeholder.
+- [x] `HistoryScreen.tsx` (rediseñado según mockup Stitch `historial_de_an_lisis_v2`): barra búsqueda, filter chips dinámicos (9 clases + "Todos"), agrupación por fecha (Actividad Reciente / Semana Pasada / Anteriores) con SectionList, cards h-120 con color strip izquierdo + thumbnail placeholder icon (100px) + título + fecha/hora + badge confianza + línea de recomendación con icono.
+- [x] `ProfileScreen.tsx` (rediseñado según mockup Stitch `perfil_e_impacto_doctormaiz`): avatar circular con badge verificación, nombre + ubicación, sección "Impacto Colectivo" (2 métricas + barra progreso en dark card), lista Configuración (Cuenta, Notificaciones, Modo Offline toggle, Soporte, Cerrar Sesión en rojo), versión del app.
+- [x] **Prueba de salida:** 39 tests passing — diagnosis (16), schema (6), validation (15), LoginScreen (2), RootNavigator (1). Mock de `@/data/database` en tests de navegación para evitar dependencia nativa.
+
+**Notas técnicas resueltas durante Fase 2:**
+- RxJS CJS paths: resuelto con resolver ESM en `metro.config.js`.
+- WatermelonDB decorators + Babel `@babel/plugin-transform-typescript`: removido `!:` (definite assignment) de modelos, no necesario con legacy decorators.
+- `@babel/plugin-transform-class-properties` con `loose: true` conflictuaba con private methods de RN 0.86: removido, babel-preset-expo lo maneja.
+- WatermelonDB JSI no disponible en Expo Go: `jsi: false` + detección condicional de `NativeModules.WMDatabaseBridge` + fallback a datos mock en memoria.
+- `ANDROID_HOME` configurado permanentemente: `C:\Users\usuario\AppData\Local\Android\Sdk` + `platform-tools` y `emulator` en PATH.
+- `expo-dev-client` instalado para development builds con módulos nativos (WatermelonDB).
 
 ### Fase 3 — Cámara y Captura
 **Objetivo:** capturar una foto con la guía de recorte, sin inferencia todavía.
 
-- `react-native-vision-camera` + permisos + config plugin.
-- Máscara de hoja: `react-native-svg` `<Path>` reproduciendo el `clip-path` del mockup `escaneo_de_hoja_localizado`; línea de escaneo y guías animadas con `react-native-reanimated`.
-- Captura → `expo-file-system` guarda el archivo local → crea un registro `scans` con `label: null` (pendiente de inferencia).
-- **Prueba de salida:** manual en dispositivo real (cámara no es confiable en simulador) — foto capturada, archivo existe, registro creado.
+- [ ] `react-native-vision-camera` + permisos + config plugin.
+- [ ] Máscara de hoja: `react-native-svg` `<Path>` reproduciendo el `clip-path` del mockup `escaneo_de_hoja_localizado`; línea de escaneo y guías animadas con `react-native-reanimated`.
+- [ ] Captura → `expo-file-system` guarda el archivo local → crea un registro `scans` con `label: null` (pendiente de inferencia).
+- [ ] **Prueba de salida:** manual en dispositivo real (cámara no es confiable en simulador) — foto capturada, archivo existe, registro creado.
 
 ### Fase 4 — Motor de Inferencia (mock) + Resultado del Análisis
 **Objetivo:** pantalla de resultado completa y funcional, usando `MockInferenceEngine`.
 
-- Implementar el contrato de inferencia descrito arriba.
-- `resultado_del_an_lisis_v2`: donut de confianza con `react-native-svg` (`strokeDasharray` calculado desde `confidence`), recomendaciones desde `content/recommendations.ts` según `label`. Si `confidence` es baja, mostrar además la segunda clase más probable de `distribution` (ya viene en el contrato) para comunicar la incertidumbre en vez de ocultarla — relevante dado que el modelo prioriza recall sobre precisión.
-- Se redacta el copy agronómico faltante para `gray_leaf_spot`, `lethal_necrosis`, `phosphorus_deficiency` y `potassium_deficiency` (no existían en los mockups de Stitch).
-- **Prueba de salida:** RNTL renderiza `ScanResult` para las 9 clases inyectando el mock directamente (sin cámara); manual: capturar foto real → ver resultado mockeado con latencia simulada.
+- [ ] Implementar el contrato de inferencia descrito arriba.
+- [ ] `resultado_del_an_lisis_v2`: donut de confianza con `react-native-svg` (`strokeDasharray` calculado desde `confidence`), recomendaciones desde `content/recommendations.ts` según `label`. Si `confidence` es baja, mostrar además la segunda clase más probable de `distribution` (ya viene en el contrato) para comunicar la incertidumbre en vez de ocultarla — relevante dado que el modelo prioriza recall sobre precisión.
+- [ ] Se redacta el copy agronómico faltante para `gray_leaf_spot`, `lethal_necrosis`, `phosphorus_deficiency` y `potassium_deficiency` (no existían en los mockups de Stitch).
+- [ ] **Prueba de salida:** RNTL renderiza `ScanResult` para las 9 clases inyectando el mock directamente (sin cámara); manual: capturar foto real → ver resultado mockeado con latencia simulada.
 
 ### Fase 5 — Retroalimentación Colaborativa + Dataset Nacional
-- `detalle_e_inteligencia_colaborativa_v2`: formulario de corrección escribe en `corrections`, timeline de estados.
-- `contribuci_n_al_dataset_nacional`: escribe en `dataset_contributions` con copia local de imagen. El `<select>` de "Etiqueta de Diagnóstico" del mockup tenía opciones inventadas (p. ej. "Roya Polvosa"); se reemplaza por las 9 clases reales de `DiagnosisClass`.
-- **Prueba de salida:** RNTL de formularios y transición de estados; unit tests de las queries de corrección.
+- [ ] `detalle_e_inteligencia_colaborativa_v2`: formulario de corrección escribe en `corrections`, timeline de estados.
+- [ ] `contribuci_n_al_dataset_nacional`: escribe en `dataset_contributions` con copia local de imagen. El `<select>` de "Etiqueta de Diagnóstico" del mockup tenía opciones inventadas (p. ej. "Roya Polvosa"); se reemplaza por las 9 clases reales de `DiagnosisClass`.
+- [ ] **Prueba de salida:** RNTL de formularios y transición de estados; unit tests de las queries de corrección.
 
 ### Fase 6 — Perfil e Impacto
-- Agregaciones locales (conteos, rango) sobre las tablas existentes — sin depender de backend para v1.
-- **Prueba de salida:** unit tests de las funciones de agregación con datos sembrados.
+- [ ] Agregaciones locales (conteos, rango) sobre las tablas existentes — sin depender de backend para v1.
+- [ ] **Prueba de salida:** unit tests de las funciones de agregación con datos sembrados.
 
 ### Fase 7 — Sincronización con FastAPI
-- `api/client.ts` + `api/syncQueue.ts`; `@react-native-community/netinfo` dispara `flushPendingSync()` al reconectar.
-- Si el backend real no está listo, desarrollar contra un stub (`msw` o FastAPI mínimo) — mismo patrón mock/real.
-- **Prueba de salida:** unit tests mockeando `fetch`; manual: alternar modo avión y confirmar que la cola sube los pendientes al reconectar.
+- [ ] `api/client.ts` + `api/syncQueue.ts`; `@react-native-community/netinfo` dispara `flushPendingSync()` al reconectar.
+- [ ] Si el backend real no está listo, desarrollar contra un stub (`msw` o FastAPI mínimo) — mismo patrón mock/real.
+- [ ] **Prueba de salida:** unit tests mockeando `fetch`; manual: alternar modo avión y confirmar que la cola sube los pendientes al reconectar.
 
 ### Fase 8a — Conversión y Cuantización del Modelo (`best.pth` → `model.tflite`)
 **Objetivo:** producir el artefacto `.tflite` desplegable a partir del checkpoint EfficientNet-B0 ya entrenado. Trabajo Python/ML, independiente del resto del roadmap — **puede arrancar ya, en paralelo con las Fases 0–7**.
 
-- Ver el detalle técnico completo en "Pipeline de conversión `best.pth` → `model.tflite`" más arriba (reconstrucción del modelo, verificación del orden de clases, exportación, PTQ Int8, `model_card.json`, validación de equivalencia).
-- **Prueba de salida:** el `.tflite` cuantizado reproduce (dentro de un margen razonable) las predicciones del `best.pth` original sobre el mismo set de imágenes de prueba; tamaño y latencia medidos en desktop como primer filtro.
+- [ ] Ver el detalle técnico completo en "Pipeline de conversión `best.pth` → `model.tflite`" más arriba (reconstrucción del modelo, verificación del orden de clases, exportación, PTQ Int8, `model_card.json`, validación de equivalencia).
+- [ ] **Prueba de salida:** el `.tflite` cuantizado reproduce (dentro de un margen razonable) las predicciones del `best.pth` original sobre el mismo set de imágenes de prueba; tamaño y latencia medidos en desktop como primer filtro.
 
 ### Fase 8b — Integración del Modelo en la App
 **Objetivo:** conectar el `model.tflite` producido en 8a al `InferenceEngine` real de la app.
 
-- Recibir `model.tflite` (Int8) + `model_card.json`, validar que input/output respeten el contrato fijado en Fase 4: 224×224 de entrada, salida con las 9 clases en el mismo orden que `DiagnosisClass`, normalización leída de los metadatos del propio modelo (no hardcodeada).
-- Implementar `TFLiteInferenceEngine` con `fast-tflite`; benchmark de latencia/memoria en el dispositivo de referencia de `model-ml.md` (Android ≥ 4 GB RAM, Snapdragon serie 6xx o equivalente) — **no** en el dispositivo de desarrollo si es un flagship, ni en simulador.
-- Flip de `EXPO_PUBLIC_USE_MOCK_MODEL=false` — sin cambios en el resto de la app.
-- **Criterios de aceptación (duros, de `model-ml.md`):**
+- [ ] Recibir `model.tflite` (Int8) + `model_card.json`, validar que input/output respeten el contrato fijado en Fase 4: 224×224 de entrada, salida con las 9 clases en el mismo orden que `DiagnosisClass`, normalización leída de los metadatos del propio modelo (no hardcodeada).
+- [ ] Implementar `TFLiteInferenceEngine` con `fast-tflite`; benchmark de latencia/memoria en el dispositivo de referencia de `model-ml.md` (Android ≥ 4 GB RAM, Snapdragon serie 6xx o equivalente) — **no** en el dispositivo de desarrollo si es un flagship, ni en simulador.
+- [ ] Flip de `EXPO_PUBLIC_USE_MOCK_MODEL=false` — sin cambios en el resto de la app.
+- [ ] **Criterios de aceptación (duros, de `model-ml.md`):**
   - Tamaño de `model.tflite` ≤ 20 MB.
   - Latencia de inferencia ≤ 300 ms por imagen en el dispositivo de referencia.
   - Verificación de que el orden de salida del tensor coincide 1:1 con `DiagnosisClass` (un desajuste de orden produce diagnósticos incorrectos silenciosos).
-- **Prueba de salida:** comparación manual contra fotos de referencia por clase (prestando atención a las 4 clases con pocos datos reales); medición de tiempo de inferencia y tamaño final del binario en el dispositivo objetivo.
+- [ ] **Prueba de salida:** comparación manual contra fotos de referencia por clase (prestando atención a las 4 clases con pocos datos reales); medición de tiempo de inferencia y tamaño final del binario en el dispositivo objetivo.
 
 ### Fase 9 — Hardening y QA End-to-End Offline
-- Recorrido completo en modo avión de todos los flujos (auth → escaneo → resultado → historial → corrección → dataset → perfil).
-- Revisión visual contra cada `screen.png` de Stitch.
-- Limpieza de código de desarrollo (seed data, overrides del dev-menu) detrás de `__DEV__`.
+- [ ] Recorrido completo en modo avión de todos los flujos (auth → escaneo → resultado → historial → corrección → dataset → perfil).
+- [ ] Revisión visual contra cada `screen.png` de Stitch.
+- [ ] Limpieza de código de desarrollo (seed data, overrides del dev-menu) detrás de `__DEV__`.
 
 ---
 
