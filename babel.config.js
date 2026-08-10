@@ -3,7 +3,6 @@ module.exports = function (api) {
   return {
     presets: [['babel-preset-expo', { jsxImportSource: 'nativewind' }]],
     plugins: [
-      ['@babel/plugin-proposal-decorators', { legacy: true }],
       [
         'module-resolver',
         {
@@ -12,6 +11,16 @@ module.exports = function (api) {
           },
         },
       ],
+    ],
+    overrides: [
+      {
+        test: (filePath) =>
+          typeof filePath === 'string' && /[\\/]src[\\/]data[\\/]models[\\/]/.test(filePath),
+        plugins: [
+          ['@babel/plugin-proposal-decorators', { legacy: true }],
+          ['@babel/plugin-transform-class-properties', { loose: true }],
+        ],
+      },
     ],
   };
 };
