@@ -25,6 +25,10 @@ export async function getScanCountByLabel(label: DiagnosisClass): Promise<number
   return scansCollection.query(Q.where('label', label)).fetchCount();
 }
 
+export async function getScanById(id: string): Promise<Scan> {
+  return scansCollection.find(id);
+}
+
 export async function createScan(data: {
   imageUri: string;
   label?: DiagnosisClass | null;

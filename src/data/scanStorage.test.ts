@@ -79,4 +79,14 @@ describe('savePhotoFile', () => {
     expect(mockCopy).toHaveBeenCalled();
     expect(finalUri).toContain('file:///document/scans/scan_');
   });
+
+  it('saves into a different subdirectory with a matching file prefix when provided', async () => {
+    const finalUri = await savePhotoFile(
+      'file:///cache/original.jpg',
+      'contributions',
+      'contribution',
+    );
+
+    expect(finalUri).toContain('file:///document/contributions/contribution_');
+  });
 });

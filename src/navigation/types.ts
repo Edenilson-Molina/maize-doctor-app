@@ -19,6 +19,16 @@ export type ScanStackParamList = {
   };
 };
 
+export type HomeStackParamList = {
+  HomeMain: undefined;
+  Contribute: undefined;
+};
+
+export type HistoryStackParamList = {
+  HistoryList: undefined;
+  ScanDetail: { scanId: string };
+};
+
 export type AppTabParamList = {
   Home: undefined;
   Scan: undefined;

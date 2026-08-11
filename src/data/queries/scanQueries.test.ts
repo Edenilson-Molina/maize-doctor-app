@@ -1,13 +1,14 @@
 const mockWrite = jest.fn((callback: () => Promise<void>) => callback());
+const mockFind = jest.fn();
 
 jest.mock('../database', () => ({
   database: {
     write: (callback: () => Promise<void>) => mockWrite(callback),
-    collections: { get: jest.fn(() => ({})) },
+    collections: { get: jest.fn(() => ({ find: (id: string) => mockFind(id) })) },
   },
 }));
 
-import { updateScanResult } from './scanQueries';
+import { updateScanResult, getScanById } from './scanQueries';
 import type { Scan } from '../models/Scan';
 
 describe('updateScanResult', () => {
@@ -33,5 +34,21 @@ describe('updateScanResult', () => {
     expect(fakeScan.label).toBe('common_rust');
     expect(fakeScan.confidence).toBe(0.82);
     expect(fakeScan.distribution).toEqual({ common_rust: 0.82, healthy: 0.18 });
+  });
+});
+
+describe('getScanById', () => {
+  beforeEach(() => {
+    mockFind.mockClear();
+  });
+
+  it('finds the scan by id in the scans collection', async () => {
+    const fakeScan = { id: 'scan-1' } as Scan;
+    mockFind.mockResolvedValue(fakeScan);
+
+    const result = await getScanById('scan-1');
+
+    expect(mockFind).toHaveBeenCalledWith('scan-1');
+    expect(result).toBe(fakeScan);
   });
 });

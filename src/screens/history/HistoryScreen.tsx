@@ -1,10 +1,14 @@
 import { useEffect, useState, useMemo } from 'react';
 import { View, Text, FlatList, TextInput, Pressable, SectionList } from 'react-native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { database, hasNativeModule } from '@/data/database';
 import { Q } from '@nozbe/watermelondb';
 import { DIAGNOSIS_MAP, DIAGNOSIS_CLASSES, type DiagnosisClass } from '@/content/diagnosis';
 import { Icon } from '@/components/Icon';
 import { getMockScans } from '@/data/mockData';
+import type { HistoryStackParamList } from '@/navigation/types';
+
+type Props = NativeStackScreenProps<HistoryStackParamList, 'HistoryList'>;
 
 interface ScanRow {
   id: string;
@@ -47,7 +51,7 @@ function groupByDate(scans: ScanRow[]): ScanSection[] {
   return sections;
 }
 
-export function HistoryScreen() {
+export function HistoryScreen({ navigation }: Props) {
   const [scans, setScans] = useState<ScanRow[]>([]);
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
@@ -63,7 +67,7 @@ export function HistoryScreen() {
           lon: s.lon,
           createdAt: s.createdAt,
           imageUri: null,
-        }))
+        })),
       );
       return;
     }
@@ -84,7 +88,7 @@ export function HistoryScreen() {
               lon: s.lon,
               createdAt: (s._raw as any).created_at as number,
               imageUri: s.imageUri?.startsWith('dev://') ? null : s.imageUri,
-            }))
+            })),
         );
       });
     return () => sub.unsubscribe();
@@ -184,7 +188,11 @@ export function HistoryScreen() {
             </Text>
           </View>
         }
-        renderItem={({ item }) => <HistoryScanCard scan={item} />}
+        renderItem={({ item }) => (
+          <Pressable onPress={() => navigation.navigate('ScanDetail', { scanId: item.id })}>
+            <HistoryScanCard scan={item} />
+          </Pressable>
+        )}
       />
     </View>
   );
@@ -206,9 +214,15 @@ function HistoryScanCard({ scan }: { scan: ScanRow }) {
   const recommendation = getRecommendation(scan.label);
 
   return (
-    <View className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden flex-row mb-3 relative" style={{ height: 120 }}>
+    <View
+      className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden flex-row mb-3 relative"
+      style={{ height: 120 }}
+    >
       {/* Left color strip */}
-      <View className="absolute top-0 left-0 w-1 h-full" style={{ backgroundColor: info.statusColor }} />
+      <View
+        className="absolute top-0 left-0 w-1 h-full"
+        style={{ backgroundColor: info.statusColor }}
+      />
 
       {/* Image thumbnail placeholder */}
       <View className="w-[100px] h-full bg-surface-container items-center justify-center">
@@ -269,5 +283,8 @@ function getRecommendation(label: DiagnosisClass): { icon: string; text: string 
   if (info.severity === 'critical' || info.severity === 'high') {
     return { icon: 'alert-circle-outline', text: 'Requiere atención inmediata' };
   }
-  return { icon: 'alert-outline', text: info.recommendations[0] ?? 'Aplicar tratamiento preventivo' };
+  return {
+    icon: 'alert-outline',
+    text: info.recommendations[0] ?? 'Aplicar tratamiento preventivo',
+  };
 }

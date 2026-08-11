@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { hasNativeModule, database } from '@/data/database';
 import { Q } from '@nozbe/watermelondb';
 import { DIAGNOSIS_MAP, type DiagnosisClass } from '@/content/diagnosis';
 import { Icon } from '@/components/Icon';
 import { getMockScans } from '@/data/mockData';
 import { useAuth } from '@/auth/AuthContext';
+import type { HomeStackParamList } from '@/navigation/types';
+
+type Props = NativeStackScreenProps<HomeStackParamList, 'HomeMain'>;
 
 interface ScanSummary {
   id: string;
@@ -15,7 +19,7 @@ interface ScanSummary {
   imageUri: string | null;
 }
 
-export function HomeScreen() {
+export function HomeScreen({ navigation }: Props) {
   const { user } = useAuth();
   const [recentScans, setRecentScans] = useState<ScanSummary[]>([]);
   const [totalScans, setTotalScans] = useState(0);
@@ -31,7 +35,7 @@ export function HomeScreen() {
           confidence: s.confidence,
           createdAt: s.createdAt,
           imageUri: null,
-        }))
+        })),
       );
       return;
     }
@@ -44,9 +48,7 @@ export function HomeScreen() {
       const all = await col.query().fetch();
       setTotalScans(all.length);
 
-      const recent = await col
-        .query(Q.sortBy('created_at', Q.desc), Q.take(4))
-        .fetch();
+      const recent = await col.query(Q.sortBy('created_at', Q.desc), Q.take(4)).fetch();
       setRecentScans(
         recent
           .filter((s: any) => s.label !== null)
@@ -56,7 +58,7 @@ export function HomeScreen() {
             confidence: s.confidence ?? 0,
             createdAt: (s._raw as any).created_at as number,
             imageUri: s.imageUri?.startsWith('dev://') ? null : s.imageUri,
-          }))
+          })),
       );
     }
     loadFromDb();
@@ -65,7 +67,10 @@ export function HomeScreen() {
   const userName = user?.name?.split(' ')[0] ?? 'Agricultor';
 
   return (
-    <ScrollView className="flex-1 bg-background" contentContainerClassName="px-container-padding pb-6">
+    <ScrollView
+      className="flex-1 bg-background"
+      contentContainerClassName="px-container-padding pb-6"
+    >
       {/* Greeting */}
       <View className="mt-4 mb-2">
         <Text className="font-hanken-bold text-[28px] leading-9 text-primary">
@@ -104,20 +109,21 @@ export function HomeScreen() {
 
       {/* Science Banner */}
       <Pressable
+        onPress={() => navigation.navigate('Contribute')}
         className="flex-row items-center rounded-xl p-5 mb-6"
         style={{ backgroundColor: '#00452e' }}
       >
-        <View
-          className="rounded-full p-3 mr-4"
-          style={{ backgroundColor: '#95d4b3' }}
-        >
+        <View className="rounded-full p-3 mr-4" style={{ backgroundColor: '#95d4b3' }}>
           <Icon name="database-outline" size={28} color="#002d1c" />
         </View>
         <View className="flex-1">
           <Text className="font-hanken-semibold text-headline-sm" style={{ color: '#75b393' }}>
             ¡Sé parte de la Ciencia!
           </Text>
-          <Text className="font-inter text-body-md mt-0.5" style={{ color: 'rgba(117,179,147,0.9)' }}>
+          <Text
+            className="font-inter text-body-md mt-0.5"
+            style={{ color: 'rgba(117,179,147,0.9)' }}
+          >
             Contribuye con tus fotos al Dataset Nacional y ayuda a mejorar nuestra IA.
           </Text>
         </View>
@@ -129,9 +135,7 @@ export function HomeScreen() {
         <Text className="font-hanken-semibold text-headline-sm text-primary">
           Escaneos Recientes
         </Text>
-        <Text className="font-jetbrains text-label-md text-surface-tint">
-          Ver todo
-        </Text>
+        <Text className="font-jetbrains text-label-md text-surface-tint">Ver todo</Text>
       </View>
 
       {recentScans.length === 0 ? (
@@ -183,12 +187,8 @@ function EnvironmentCard({
   return (
     <View className="flex-1 bg-surface-container-lowest rounded-xl border border-surface-variant p-4 items-center justify-center shadow-sm">
       <Icon name={icon as never} size={28} color={color} />
-      <Text className="font-hanken-semibold text-headline-sm text-on-surface mt-2">
-        {value}
-      </Text>
-      <Text className="font-jetbrains text-label-md text-on-surface-variant mt-0.5">
-        {label}
-      </Text>
+      <Text className="font-hanken-semibold text-headline-sm text-on-surface mt-2">{value}</Text>
+      <Text className="font-jetbrains text-label-md text-on-surface-variant mt-0.5">{label}</Text>
     </View>
   );
 }
@@ -231,9 +231,7 @@ function ScanCard({ scan }: { scan: ScanSummary }) {
             </Text>
           </View>
         </View>
-        <Text className="font-inter text-sm text-on-surface-variant mt-0.5">
-          {timeAgo}
-        </Text>
+        <Text className="font-inter text-sm text-on-surface-variant mt-0.5">{timeAgo}</Text>
       </View>
     </View>
   );
