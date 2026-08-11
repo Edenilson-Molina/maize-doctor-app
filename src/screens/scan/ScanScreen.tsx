@@ -1,35 +1,41 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { CameraView, useCameraPermissions, type CameraType, type FlashMode } from 'expo-camera';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
 import { Icon } from '@/components/Icon';
 import { LeafOverlay } from './LeafOverlay';
 import { savePhotoFile } from '@/data/scanStorage';
-import { createScan } from '@/data/queries/scanQueries';
+import { createScan, updateScanResult } from '@/data/queries/scanQueries';
+import { getInferenceEngine } from '@/ml';
+import type { ScanStackParamList } from '@/navigation/types';
 
-export function ScanScreen() {
+type Props = NativeStackScreenProps<ScanStackParamList, 'ScanCamera'>;
+
+export function ScanScreen({ navigation }: Props) {
   const [permission, requestPermission] = useCameraPermissions();
   const [facing, setFacing] = useState<CameraType>('back');
   const [flash, setFlash] = useState<FlashMode>('off');
   const [isSaving, setIsSaving] = useState(false);
-  const [savedConfirmation, setSavedConfirmation] = useState(false);
   const cameraRef = useRef<CameraView>(null);
-  const confirmationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (confirmationTimeoutRef.current) clearTimeout(confirmationTimeoutRef.current);
-    };
-  }, []);
 
   async function persistScan(imageUri: string) {
     setIsSaving(true);
     try {
       const finalUri = await savePhotoFile(imageUri);
-      await createScan({ imageUri: finalUri, label: null });
-      setSavedConfirmation(true);
-      if (confirmationTimeoutRef.current) clearTimeout(confirmationTimeoutRef.current);
-      confirmationTimeoutRef.current = setTimeout(() => setSavedConfirmation(false), 1400);
+      const scan = await createScan({ imageUri: finalUri, label: null });
+      const result = await getInferenceEngine().predict(finalUri);
+      await updateScanResult(scan, result);
+
+      navigation.navigate('ScanResult', {
+        imageUri: finalUri,
+        label: result.label,
+        confidence: result.confidence,
+        distribution: result.distribution,
+        temperature: null,
+        humidity: null,
+        createdAt: Date.now(),
+      });
     } finally {
       setIsSaving(false);
     }
@@ -105,7 +111,7 @@ export function ScanScreen() {
         <View className="absolute bottom-32 left-0 right-0 items-center">
           <View className="bg-black/60 px-6 py-2 rounded-full border border-white/10">
             <Text className="font-label-md text-label-md text-white">
-              {savedConfirmation ? 'Escaneo guardado ✓' : 'Coloque la hoja en el centro'}
+              {isSaving ? 'Analizando hoja…' : 'Coloque la hoja en el centro'}
             </Text>
           </View>
         </View>

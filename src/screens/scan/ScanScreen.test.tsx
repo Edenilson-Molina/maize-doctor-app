@@ -1,17 +1,21 @@
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { Text, View } from 'react-native';
 import { ScanScreen } from './ScanScreen';
+import type { ScanStackParamList } from '@/navigation/types';
 
 const mockRequestPermission = jest.fn();
 let mockPermission: { granted: boolean } | null = { granted: true };
 const mockTakePictureAsync = jest.fn().mockResolvedValue({ uri: 'file:///cache/photo.jpg' });
 
 jest.mock('expo-camera', () => {
-  const { View } = require('react-native');
+  const { View: RNView } = require('react-native');
   const React = require('react');
   return {
     CameraView: React.forwardRef((props: { children?: React.ReactNode }, ref: unknown) => {
       React.useImperativeHandle(ref, () => ({ takePictureAsync: mockTakePictureAsync }));
-      return <View>{props.children}</View>;
+      return <RNView>{props.children}</RNView>;
     }),
     useCameraPermissions: () => [mockPermission, mockRequestPermission],
   };
@@ -27,12 +31,42 @@ jest.mock('@/data/scanStorage', () => ({
 
 jest.mock('@/data/queries/scanQueries', () => ({
   createScan: jest.fn().mockResolvedValue({ id: 'scan-1' }),
+  updateScanResult: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('@/ml', () => ({
+  getInferenceEngine: () => ({
+    predict: jest.fn().mockResolvedValue({
+      label: 'common_rust',
+      confidence: 0.82,
+      distribution: { common_rust: 0.82, healthy: 0.18 },
+    }),
+  }),
 }));
 
 jest.mock('./LeafOverlay', () => {
-  const { View } = require('react-native');
-  return { LeafOverlay: () => <View testID="leaf-overlay" /> };
+  const { View: RNView } = require('react-native');
+  return { LeafOverlay: () => <RNView testID="leaf-overlay" /> };
 });
+
+const Stack = createNativeStackNavigator<ScanStackParamList>();
+
+async function renderScanScreen() {
+  return render(
+    <NavigationContainer>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="ScanCamera" component={ScanScreen} />
+        <Stack.Screen name="ScanResult">
+          {({ route }) => (
+            <View>
+              <Text>ScanResult: {route.params.label}</Text>
+            </View>
+          )}
+        </Stack.Screen>
+      </Stack.Navigator>
+    </NavigationContainer>,
+  );
+}
 
 describe('ScanScreen', () => {
   beforeEach(() => {
@@ -42,7 +76,7 @@ describe('ScanScreen', () => {
 
   it('shows a permission request when access is denied', async () => {
     mockPermission = { granted: false };
-    const { getByText } = await render(<ScanScreen />);
+    const { getByText } = await renderScanScreen();
 
     fireEvent.press(getByText('Permitir acceso a la cámara'));
 
@@ -50,15 +84,16 @@ describe('ScanScreen', () => {
   });
 
   it('renders the camera shutter when permission is granted', async () => {
-    const { queryByText } = await render(<ScanScreen />);
+    const { queryByText } = await renderScanScreen();
 
     expect(queryByText('Permitir acceso a la cámara')).toBeNull();
   });
 
-  it('captures a photo, saves the file and creates a scan record', async () => {
+  it('captures a photo, saves it, runs inference, and navigates to ScanResult', async () => {
     const { savePhotoFile } = require('@/data/scanStorage');
-    const { createScan } = require('@/data/queries/scanQueries');
-    const { getByLabelText, unmount } = await render(<ScanScreen />);
+    const { createScan, updateScanResult } = require('@/data/queries/scanQueries');
+    const { getByLabelText, findByText } = await renderScanScreen();
+
     fireEvent.press(getByLabelText('Tomar foto'));
 
     await waitFor(() => expect(mockTakePictureAsync).toHaveBeenCalled());
@@ -69,7 +104,17 @@ describe('ScanScreen', () => {
         label: null,
       }),
     );
+    await waitFor(() =>
+      expect(updateScanResult).toHaveBeenCalledWith(
+        { id: 'scan-1' },
+        {
+          label: 'common_rust',
+          confidence: 0.82,
+          distribution: { common_rust: 0.82, healthy: 0.18 },
+        },
+      ),
+    );
 
-    await unmount();
+    expect(await findByText('ScanResult: common_rust')).toBeTruthy();
   });
 });

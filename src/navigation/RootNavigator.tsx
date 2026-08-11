@@ -10,12 +10,14 @@ import { RegisterScreen } from '@/screens/auth/RegisterScreen';
 import { ForgotPasswordScreen } from '@/screens/auth/ForgotPasswordScreen';
 import { HomeScreen } from '@/screens/home/HomeScreen';
 import { ScanScreen } from '@/screens/scan/ScanScreen';
+import { ScanResult } from '@/screens/scan/ScanResult';
 import { HistoryScreen } from '@/screens/history/HistoryScreen';
 import { ProfileScreen } from '@/screens/profile/ProfileScreen';
-import type { AuthStackParamList, AppTabParamList } from './types';
+import type { AuthStackParamList, AppTabParamList, ScanStackParamList } from './types';
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const AppTabs = createBottomTabNavigator<AppTabParamList>();
+const ScanStack = createNativeStackNavigator<ScanStackParamList>();
 
 function AuthNavigator() {
   return (
@@ -24,6 +26,25 @@ function AuthNavigator() {
       <AuthStack.Screen name="Register" component={RegisterScreen} />
       <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
     </AuthStack.Navigator>
+  );
+}
+
+function ScanNavigator() {
+  return (
+    <ScanStack.Navigator>
+      <ScanStack.Screen
+        name="ScanCamera"
+        component={ScanScreen}
+        options={{ header: () => <TopAppBar /> }}
+      />
+      <ScanStack.Screen
+        name="ScanResult"
+        component={ScanResult}
+        options={({ navigation }) => ({
+          header: () => <TopAppBar onBack={() => navigation.goBack()} />,
+        })}
+      />
+    </ScanStack.Navigator>
   );
 }
 
@@ -36,7 +57,7 @@ function AppTabsNavigator() {
       }}
     >
       <AppTabs.Screen name="Home" component={HomeScreen} />
-      <AppTabs.Screen name="Scan" component={ScanScreen} />
+      <AppTabs.Screen name="Scan" component={ScanNavigator} options={{ headerShown: false }} />
       <AppTabs.Screen name="History" component={HistoryScreen} />
       <AppTabs.Screen name="Profile" component={ProfileScreen} />
     </AppTabs.Navigator>

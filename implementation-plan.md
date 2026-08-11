@@ -192,13 +192,20 @@ Con esto, las Fases 0–7 y 9 quedan completamente desbloqueadas y probadas sin 
 - **Jest + Reanimated v4/Worklets:** el mock estándar (`react-native-reanimated/mock`) intenta cargar el módulo nativo de `react-native-worklets` y falla en el entorno de Jest. Se agregó `jest-setup.js` (referenciado por `setupFilesAfterEnv` en `package.json`) con `jest.mock('react-native-worklets', () => require('react-native-worklets/src/mock'))` — deja correr la lógica real de Reanimated (hooks, `withRepeat`, etc.) sin tocar hardware.
 - **`@testing-library/react-native` v14: `render()` es `async`** y debe usarse con `await` — omitir el `await` no lanza error, simplemente devuelve una Promesa que al desestructurarse produce "`getByText` is not a function" (mismo patrón que ya usaba `LoginScreen.test.tsx`).
 
-### Fase 4 — Motor de Inferencia (mock) + Resultado del Análisis
+### Fase 4 — Motor de Inferencia (mock) + Resultado del Análisis ✅ COMPLETADA
 **Objetivo:** pantalla de resultado completa y funcional, usando `MockInferenceEngine`.
 
-- [ ] Implementar el contrato de inferencia descrito arriba.
-- [ ] `resultado_del_an_lisis_v2`: donut de confianza con `react-native-svg` (`strokeDasharray` calculado desde `confidence`), recomendaciones desde `content/recommendations.ts` según `label`. Si `confidence` es baja, mostrar además la segunda clase más probable de `distribution` (ya viene en el contrato) para comunicar la incertidumbre en vez de ocultarla — relevante dado que el modelo prioriza recall sobre precisión.
-- [ ] Se redacta el copy agronómico faltante para `gray_leaf_spot`, `lethal_necrosis`, `phosphorus_deficiency` y `potassium_deficiency` (no existían en los mockups de Stitch).
-- [ ] **Prueba de salida:** RNTL renderiza `ScanResult` para las 9 clases inyectando el mock directamente (sin cámara); manual: capturar foto real → ver resultado mockeado con latencia simulada.
+- [x] Contrato de inferencia: `src/ml/InferenceEngine.ts` (interfaces `InferenceResult`/`InferenceEngine`, sin implementación, mismo patrón que `AuthService.ts`), `src/ml/MockInferenceEngine.ts` (selección cíclica determinista de `DiagnosisClass`, confianza/distribución aleatorias, latencia simulada 600–1500ms), `src/ml/index.ts` (`getInferenceEngine()` factory).
+- [x] `ScanResult.tsx` (`src/screens/scan/`): donut de confianza (`ConfidenceDonut.tsx`, nuevo componente reutilizable en `components/` con `react-native-svg` `Circle` + `strokeDasharray`), recomendaciones desde `DIAGNOSIS_MAP` (ya en `content/diagnosis.ts`, no `recommendations.ts` como se nombraba originalmente — ver Fase 2). Si `confidence < 0.7` se muestra la segunda clase más probable de `distribution`.
+- [x] El copy agronómico de las 4 clases nuevas ya estaba completo desde la Fase 2 (`DIAGNOSIS_MAP` en `content/diagnosis.ts`) — no hizo falta redactarlo de nuevo.
+- [x] Navegación: se agregó un stack anidado dentro del tab "Escanear" (`ScanStackParamList` en `types.ts`, `ScanNavigator` en `RootNavigator.tsx`) — no existía ningún stack anidado dentro de un tab en el repo antes de esta fase. `TopAppBar` ahora acepta `onBack?` para el header de `ScanResult`.
+- [x] `ScanScreen.tsx`: tras capturar/guardar, corre `getInferenceEngine().predict()`, persiste el resultado con `updateScanResult()` (nuevo en `scanQueries.ts`), y navega a `ScanResult` con los datos por `route.params` (sin acceso a DB desde la pantalla de resultado). Se eliminó el toast "Escaneo guardado" — la navegación es la confirmación.
+- [x] **Adaptaciones vs. el mockup** (decididas con el usuario): sin botones "Guardar en Historial" (ya se guarda al capturar) ni "Exportar Reporte" (fuera de alcance) — solo "Volver a Escanear". Sin ubicación de texto ni sensores de clima reales (`temperature`/`humedad` muestran "N/D"). Sin pill de tipo de patógeno (no existe ese campo en `DiagnosisInfo`).
+- [x] **Prueba de salida:** `MockInferenceEngine.test.ts` (4 tests, `jest.useFakeTimers()`), `scanQueries.test.ts` (`updateScanResult`), `ScanResult.test.tsx` (RNTL, `it.each(DIAGNOSIS_CLASSES)` inyectando route.params directamente para las 9 clases, sin cámara), `ScanScreen.test.tsx` actualizado (verifica navegación a `ScanResult` tras capturar). 63 tests totales en verde. Manual en dispositivo real: cámara → captura → spinner "Analizando hoja…" → `ScanResult` con diagnóstico cíclico → "Volver a Escanear" regresa a la cámara — verificado en emulador Android.
+
+**Notas técnicas resueltas durante Fase 4:**
+- **Jest + `render()` async de RNTL v14 combinado con navegación real:** los tests de `ScanScreen` y `ScanResult` usan `NavigationContainer` + stack de prueba (mismo patrón que `LoginScreen.test.tsx`) en vez de renderizar la pantalla suelta, ya que ahora depende de `navigation`/`route` tipados.
+- **`ScanResult` no accede a WatermelonDB:** recibe todo por `route.params` (regla de `coding-standards.md` §7) — esto simplificó mucho las pruebas de componente (nada de mocks de base de datos para renderizar las 9 clases).
 
 ### Fase 5 — Retroalimentación Colaborativa + Dataset Nacional
 - [ ] `detalle_e_inteligencia_colaborativa_v2`: formulario de corrección escribe en `corrections`, timeline de estados.

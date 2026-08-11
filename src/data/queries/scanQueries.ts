@@ -10,15 +10,11 @@ export function observeScans() {
 }
 
 export function observeScansByLabel(label: DiagnosisClass) {
-  return scansCollection
-    .query(Q.where('label', label), Q.sortBy('created_at', Q.desc))
-    .observe();
+  return scansCollection.query(Q.where('label', label), Q.sortBy('created_at', Q.desc)).observe();
 }
 
 export function observeRecentScans(limit: number = 5) {
-  return scansCollection
-    .query(Q.sortBy('created_at', Q.desc), Q.take(limit))
-    .observe();
+  return scansCollection.query(Q.sortBy('created_at', Q.desc), Q.take(limit)).observe();
 }
 
 export async function getScanCount(): Promise<number> {
@@ -50,6 +46,23 @@ export async function createScan(data: {
       scan.temperature = data.temperature ?? null;
       scan.humidity = data.humidity ?? null;
       scan.synced = false;
+    });
+  });
+}
+
+export async function updateScanResult(
+  scan: Scan,
+  result: {
+    label: DiagnosisClass;
+    confidence: number;
+    distribution: Record<string, number>;
+  },
+): Promise<void> {
+  await database.write(async () => {
+    await scan.update((s) => {
+      s.label = result.label;
+      s.confidence = result.confidence;
+      s.distribution = result.distribution;
     });
   });
 }
