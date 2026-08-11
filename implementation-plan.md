@@ -175,13 +175,22 @@ Con esto, las Fases 0–7 y 9 quedan completamente desbloqueadas y probadas sin 
 - `ANDROID_HOME` configurado permanentemente: `C:\Users\usuario\AppData\Local\Android\Sdk` + `platform-tools` y `emulator` en PATH.
 - `expo-dev-client` instalado para development builds con módulos nativos (WatermelonDB).
 
-### Fase 3 — Cámara y Captura
+### Fase 3 — Cámara y Captura ✅ COMPLETADA
 **Objetivo:** capturar una foto con la guía de recorte, sin inferencia todavía.
 
-- [ ] `react-native-vision-camera` + permisos + config plugin.
-- [ ] Máscara de hoja: `react-native-svg` `<Path>` reproduciendo el `clip-path` del mockup `escaneo_de_hoja_localizado`; línea de escaneo y guías animadas con `react-native-reanimated`.
-- [ ] Captura → `expo-file-system` guarda el archivo local → crea un registro `scans` con `label: null` (pendiente de inferencia).
-- [ ] **Prueba de salida:** manual en dispositivo real (cámara no es confiable en simulador) — foto capturada, archivo existe, registro creado.
+- [x] `expo-camera` (`CameraView` + `useCameraPermissions`) + permisos + config plugin — ver nota técnica de desviación abajo.
+- [x] Máscara de hoja: `LeafOverlay.tsx` reproduce el contorno del mockup `escaneo_de_hoja_localizado` con un `View` de bordes punteados rotado (sin SVG, ver nota técnica); línea de escaneo animada con `react-native-reanimated` (`useSharedValue` + `withRepeat`), guías de esquina estáticas.
+- [x] Captura → `src/data/scanStorage.ts` (`savePhotoFile`) redimensiona con `expo-image-manipulator` y copia a `Paths.document/scans/` con la API `File`/`Directory` de `expo-file-system` → `createScan()` crea el registro `scans` con `label: null` (pendiente de inferencia).
+- [x] Botón "Galería" con `expo-image-picker` (`launchImageLibraryAsync`) sigue el mismo pipeline de guardado que la captura de cámara.
+- [x] Estado de permiso denegado con el lenguaje visual del design system (sin `Alert.alert`); confirmación breve en pantalla tras guardar.
+- [x] **Prueba de salida:** `scanStorage.test.ts` (4 tests) + `ScanScreen.test.tsx` (3 tests, permisos denegados/concedidos y flujo de captura completo con mocks) — 46 tests totales en verde. Manual en dispositivo real pendiente de ejecutar (`expo prebuild` + `expo run:android`), ver sección "Verificación general".
+
+**Notas técnicas resueltas durante Fase 3:**
+- **`react-native-vision-camera` → `expo-camera`:** al verificar la documentación vigente (SDK 57) se confirmó que `vision-camera` acaba de pasar por una reescritura mayor a "Nitro Modules" (v5.2.2, publicada días antes de esta fase), con documentación todavía incompleta y dependencias nuevas de bajo nivel (`react-native-nitro-modules`, `react-native-nitro-image`, `react-native-worklets` para frame processors). Nada de eso lo pedía la Fase 3 (solo captura, sin inferencia en tiempo real). Se usó `expo-camera`, estable en SDK 57. Se revisita `vision-camera` en la Fase 8b solo si el frame-processing en tiempo real resulta imprescindible para conectar el modelo TFLite.
+- **Reanimated en SDK 57 no requiere tocar `babel.config.js`:** `npx expo install react-native-reanimated react-native-worklets` es suficiente — `babel-preset-expo` configura el plugin de Reanimated automáticamente.
+- **`expo-file-system` API nueva (`File`/`Directory`) en vez de la legacy `FileSystem.copyAsync`** (deprecada en SDK 57): `savePhotoFile` usa `new File(uri).copy(destination)` sobre un `Directory` creado bajo `Paths.document`.
+- **Jest + Reanimated v4/Worklets:** el mock estándar (`react-native-reanimated/mock`) intenta cargar el módulo nativo de `react-native-worklets` y falla en el entorno de Jest. Se agregó `jest-setup.js` (referenciado por `setupFilesAfterEnv` en `package.json`) con `jest.mock('react-native-worklets', () => require('react-native-worklets/src/mock'))` — deja correr la lógica real de Reanimated (hooks, `withRepeat`, etc.) sin tocar hardware.
+- **`@testing-library/react-native` v14: `render()` es `async`** y debe usarse con `await` — omitir el `await` no lanza error, simplemente devuelve una Promesa que al desestructurarse produce "`getByText` is not a function" (mismo patrón que ya usaba `LoginScreen.test.tsx`).
 
 ### Fase 4 — Motor de Inferencia (mock) + Resultado del Análisis
 **Objetivo:** pantalla de resultado completa y funcional, usando `MockInferenceEngine`.

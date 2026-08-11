@@ -21,6 +21,19 @@
       }
     },
     "newArchEnabled": true,
-    "plugins": []
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "DoctorMaiz necesita acceso a la cámara para escanear hojas de maíz."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "DoctorMaiz necesita acceso a tus fotos para analizar una imagen existente."
+        }
+      ]
+    ]
   }
 }
