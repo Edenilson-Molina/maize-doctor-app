@@ -219,9 +219,14 @@ Con esto, las Fases 0–7 y 9 quedan completamente desbloqueadas y probadas sin 
 - **`Pressable` no expone `onPress` como prop en el nodo host renderizado** (queda envuelto en el sistema de responders internamente) — `getByText` apuntando a un `<Text>` hijo de un `Pressable` es frágil para `fireEvent.press`. Se estandarizó en agregar `accessibilityLabel` explícito a cada `Pressable` interactivo y usar `getByLabelText`, seleccionando siempre el elemento correcto sin depender de que el evento "burbujee".
 - **Actualizaciones de estado disparadas fuera de un evento de React (ej. `subscription.callback(...)` invocado directamente en un test) deben envolverse en `await act(async () => {...})`** — igual que con `fireEvent`, la versión síncrona de `act` sin `await` no es suficiente en esta versión de React.
 
-### Fase 6 — Perfil e Impacto
-- [ ] Agregaciones locales (conteos, rango) sobre las tablas existentes — sin depender de backend para v1.
-- [ ] **Prueba de salida:** unit tests de las funciones de agregación con datos sembrados.
+### Fase 6 — Perfil e Impacto ✅ COMPLETADA
+- [x] `src/lib/rank.ts` (`computeRankProgress`): lógica pura de rangos (4 tiers: Nuevo/Contribuidor/Experto de Campo/Master Field, umbrales 0/10/50/200) sobre la actividad total (escaneos + contribuciones al dataset). El plan pedía "rango" sin definir umbrales — se diseñaron de forma razonable y quedaron documentados aquí, decidido con el usuario.
+- [x] `src/data/queries/impactQueries.ts` (`getImpactStats`): agrega `getScanCount()` + `getContributionCount()` (ambas ya existían) en un solo resultado `{ totalScans, totalContributions, totalActivity }`.
+- [x] `ProfileScreen.tsx` reemplaza los números estáticos del mockup (1,284 imágenes, "Expert Ag", 75%) por datos reales: "Imágenes Validadas" = total de escaneos reales (decidido con el usuario, dado que no existe todavía ningún flujo de revisión humana que pueda poblar `correction.status: 'reviewed'` de forma significativa), rango y barra de progreso calculados con `computeRankProgress`.
+- [x] **Prueba de salida:** `rank.test.ts` (7 tests, cubre los límites de cada tier), `impactQueries.test.ts` (2 tests), `ProfileScreen.test.tsx` (3 tests: actividad cero, actividad intermedia, rango máximo). 87 tests totales en verde. Verificación manual en dispositivo pendiente — el emulador quedó en estado `offline` tras la sesión y no fue posible revivirlo vía `adb` en esta sesión (ver nota abajo); la lógica quedó cubierta exhaustivamente por unit/component tests como red de seguridad.
+
+**Notas técnicas resueltas durante Fase 6:**
+- **Emulador Android quedó `offline` tras horas de uso continuo** (múltiples ciclos de `force-stop`/relanzamiento a través de las Fases 3–6) — `adb devices` lo reporta offline y `adb kill-server`/`start-server`/`reconnect` no lo recuperaron en esta sesión. No relacionado con el código de esta fase; queda pendiente reiniciar el emulador (o el equipo) antes de la próxima verificación manual.
 
 ### Fase 7 — Sincronización con FastAPI
 - [ ] `api/client.ts` + `api/syncQueue.ts`; `@react-native-community/netinfo` dispara `flushPendingSync()` al reconectar.
