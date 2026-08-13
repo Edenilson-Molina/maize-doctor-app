@@ -74,7 +74,7 @@ export function ProfileScreen() {
               <Text className="font-jetbrains text-label-md text-on-surface-variant">
                 Imágenes Validadas
               </Text>
-              <Text className="font-hanken-semibold text-headline-md text-primary">
+              <Text className="font-hanken-semibold text-xl text-primary">
                 {totalScans}
               </Text>
             </View>
@@ -90,7 +90,7 @@ export function ProfileScreen() {
               <Text className="font-jetbrains text-label-md text-on-surface-variant">
                 Nivel de Contribución
               </Text>
-              <Text className="font-hanken-semibold text-headline-md text-secondary">
+              <Text className="font-hanken-semibold text-xl text-secondary">
                 {rank.currentRank}
               </Text>
             </View>

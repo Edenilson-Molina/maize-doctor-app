@@ -1,5 +1,6 @@
 const mockWrite = jest.fn((callback: () => Promise<void>) => callback());
 const mockFetchCount = jest.fn();
+const mockFetch = jest.fn();
 const mockCreate = jest.fn();
 
 jest.mock('../database', () => ({
@@ -9,6 +10,7 @@ jest.mock('../database', () => ({
       get: jest.fn(() => ({
         query: (...args: unknown[]) => ({
           fetchCount: () => mockFetchCount(...args),
+          fetch: () => mockFetch(...args),
         }),
         create: (updater: (contribution: unknown) => void) => mockCreate(updater),
       })),
@@ -16,7 +18,13 @@ jest.mock('../database', () => ({
   },
 }));
 
-import { createDatasetContribution, getContributionCount } from './datasetContributionQueries';
+import {
+  createDatasetContribution,
+  getContributionCount,
+  getUnsyncedContributions,
+  markContributionSynced,
+} from './datasetContributionQueries';
+import type { DatasetContribution } from '../models/DatasetContribution';
 
 describe('getContributionCount', () => {
   beforeEach(() => {
@@ -71,5 +79,38 @@ describe('createDatasetContribution', () => {
     });
 
     expect(fakeContribution.note).toBeNull();
+  });
+});
+
+describe('getUnsyncedContributions', () => {
+  beforeEach(() => {
+    mockFetch.mockClear();
+  });
+
+  it('queries contributions filtered by synced = false', async () => {
+    const fakeContributions = [{ id: 'contribution-1' }] as DatasetContribution[];
+    mockFetch.mockResolvedValue(fakeContributions);
+
+    const result = await getUnsyncedContributions();
+
+    expect(result).toBe(fakeContributions);
+  });
+});
+
+describe('markContributionSynced', () => {
+  beforeEach(() => {
+    mockWrite.mockClear();
+  });
+
+  it('sets synced to true on the contribution', async () => {
+    const fakeContribution = {
+      update: jest.fn((updater: (contribution: DatasetContribution) => void) => {
+        updater(fakeContribution as unknown as DatasetContribution);
+      }),
+    } as unknown as DatasetContribution;
+
+    await markContributionSynced(fakeContribution);
+
+    expect(fakeContribution.synced).toBe(true);
   });
 });

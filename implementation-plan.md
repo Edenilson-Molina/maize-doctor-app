@@ -228,10 +228,18 @@ Con esto, las Fases 0–7 y 9 quedan completamente desbloqueadas y probadas sin 
 **Notas técnicas resueltas durante Fase 6:**
 - **Emulador Android quedó `offline` tras horas de uso continuo** (múltiples ciclos de `force-stop`/relanzamiento a través de las Fases 3–6) — `adb devices` lo reporta offline y `adb kill-server`/`start-server`/`reconnect` no lo recuperaron en esta sesión. No relacionado con el código de esta fase; queda pendiente reiniciar el emulador (o el equipo) antes de la próxima verificación manual.
 
-### Fase 7 — Sincronización con FastAPI
-- [ ] `api/client.ts` + `api/syncQueue.ts`; `@react-native-community/netinfo` dispara `flushPendingSync()` al reconectar.
-- [ ] Si el backend real no está listo, desarrollar contra un stub (`msw` o FastAPI mínimo) — mismo patrón mock/real.
-- [ ] **Prueba de salida:** unit tests mockeando `fetch`; manual: alternar modo avión y confirmar que la cola sube los pendientes al reconectar.
+### Fase 7 — Sincronización con FastAPI ✅ COMPLETADA
+**Objetivo:** cola de sincronización offline-first con reconexión automática, mismo patrón mock/real que el motor de inferencia.
+
+- [x] `src/api/SyncClient.ts`: interfaz `SyncClient` con `syncScan`, `syncCorrection`, `syncContribution` — contrato idéntico al patrón `InferenceEngine`/`AuthService`.
+- [x] `src/api/MockSyncClient.ts`: implementación que simula latencia (200–500ms) sin backend — permite probar la cola de sync completa sin FastAPI.
+- [x] `src/api/FastApiSyncClient.ts`: implementación real con `fetch` POST a `EXPO_PUBLIC_API_URL` (`/scans`, `/corrections`, `/dataset-contributions`), serializa los modelos WatermelonDB a JSON con timestamps ISO.
+- [x] `src/api/index.ts`: factory `getSyncClient()` — devuelve `FastApiSyncClient` si `EXPO_PUBLIC_API_URL` está configurado, `MockSyncClient` si no.
+- [x] `src/api/syncQueue.ts`: `flushPendingSync()` recorre `getUnsyncedScans()` / `getUnsyncedCorrections()` / `getUnsyncedContributions()` y sincroniza cada registro individualmente (error aislado por registro, no rompe la cola); `startSyncListener()` usa `@react-native-community/netinfo` `addEventListener` para disparar `flushPendingSync()` al reconectar (transición `false → true`).
+- [x] Columna `synced: boolean` agregada a las 3 tablas del schema WatermelonDB (`scans`, `corrections`, `dataset_contributions`) + modelos (`Scan.ts`, `Correction.ts`, `DatasetContribution.ts`) + seed data + mock data.
+- [x] Funciones de query nuevas en cada módulo: `getUnsyncedScans`/`markScanSynced` (scanQueries), `getUnsyncedCorrections`/`markCorrectionSynced` (correctionQueries), `getUnsyncedContributions`/`markContributionSynced` (datasetContributionQueries).
+- [x] `src/lib/logger.ts`: utilidad de logging ligera usada por `syncQueue` para advertencias de sync fallidos (sin crash).
+- [x] **Prueba de salida:** `FastApiSyncClient.test.ts` (mock de `fetch`), `MockSyncClient.test.ts`, `syncQueue.test.ts` (mock de NetInfo + verificación de flush al reconectar), tests de queries de sync en `scanQueries.test.ts`, `correctionQueries.test.ts`, `datasetContributionQueries.test.ts`, `logger.test.ts`. Manual: alternar modo avión pendiente de verificación en dispositivo real.
 
 ### Fase 8a — Conversión y Cuantización del Modelo (`best.pth` → `model.tflite`)
 **Objetivo:** producir el artefacto `.tflite` desplegable a partir del checkpoint EfficientNet-B0 ya entrenado. Trabajo Python/ML, independiente del resto del roadmap — **puede arrancar ya, en paralelo con las Fases 0–7**.

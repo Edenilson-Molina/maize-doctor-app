@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { useNavigation } from '@react-navigation/native';
 import { hasNativeModule, database } from '@/data/database';
 import { Q } from '@nozbe/watermelondb';
 import { DIAGNOSIS_MAP, type DiagnosisClass } from '@/content/diagnosis';
 import { Icon } from '@/components/Icon';
 import { getMockScans } from '@/data/mockData';
 import { useAuth } from '@/auth/AuthContext';
-import type { HomeStackParamList } from '@/navigation/types';
+import type { HomeStackParamList, AppTabParamList } from '@/navigation/types';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'HomeMain'>;
 
@@ -21,6 +23,7 @@ interface ScanSummary {
 
 export function HomeScreen({ navigation }: Props) {
   const { user } = useAuth();
+  const tabNavigation = useNavigation<BottomTabNavigationProp<AppTabParamList>>();
   const [recentScans, setRecentScans] = useState<ScanSummary[]>([]);
   const [totalScans, setTotalScans] = useState(0);
 
@@ -41,8 +44,6 @@ export function HomeScreen({ navigation }: Props) {
     }
 
     async function loadFromDb() {
-      const { seedDevData } = require('@/data/seedDevData');
-      if (__DEV__) await seedDevData();
 
       const col = database!.collections.get('scans');
       const all = await col.query().fetch();
@@ -85,7 +86,11 @@ export function HomeScreen({ navigation }: Props) {
       </View>
 
       {/* FAB - Iniciar Nuevo Escaneo */}
-      <Pressable className="bg-primary-container rounded-3xl p-8 items-center my-4 shadow-lg">
+      <Pressable
+        onPress={() => tabNavigation.navigate('Scan')}
+        accessibilityLabel="Iniciar Nuevo Escaneo"
+        className="bg-primary-container rounded-3xl p-8 items-center my-4 shadow-lg"
+      >
         <Icon name="scan-helper" size={48} color="#86af99" />
         <Text className="font-hanken-semibold text-headline-md text-on-primary-container mt-3">
           Iniciar Nuevo Escaneo

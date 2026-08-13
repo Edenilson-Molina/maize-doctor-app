@@ -29,6 +29,18 @@ export async function getScanById(id: string): Promise<Scan> {
   return scansCollection.find(id);
 }
 
+export async function getUnsyncedScans(): Promise<Scan[]> {
+  return scansCollection.query(Q.where('synced', false)).fetch();
+}
+
+export async function markScanSynced(scan: Scan): Promise<void> {
+  await database.write(async () => {
+    await scan.update((s) => {
+      s.synced = true;
+    });
+  });
+}
+
 export async function createScan(data: {
   imageUri: string;
   label?: DiagnosisClass | null;

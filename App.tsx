@@ -1,6 +1,6 @@
 import './src/global.css';
 
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -21,6 +21,7 @@ import {
 } from '@expo-google-fonts/jetbrains-mono';
 import { AuthProvider } from '@/auth/AuthContext';
 import { RootNavigator } from '@/navigation/RootNavigator';
+import { startSyncListener } from '@/api/syncQueue';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -40,6 +41,11 @@ export default function App() {
       await SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError]);
+
+  useEffect(() => {
+    const unsubscribe = startSyncListener();
+    return unsubscribe;
+  }, []);
 
   if (!fontsLoaded && !fontError) {
     return null;

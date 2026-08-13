@@ -11,6 +11,18 @@ export function observeCorrectionsForScan(scanId: string) {
     .observe();
 }
 
+export async function getUnsyncedCorrections(): Promise<Correction[]> {
+  return correctionsCollection.query(Q.where('synced', false)).fetch();
+}
+
+export async function markCorrectionSynced(correction: Correction): Promise<void> {
+  await database.write(async () => {
+    await correction.update((c) => {
+      c.synced = true;
+    });
+  });
+}
+
 export async function createCorrection(data: {
   scanId: string;
   observedLabel: DiagnosisClass;

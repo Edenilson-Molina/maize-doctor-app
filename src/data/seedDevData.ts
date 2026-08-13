@@ -40,28 +40,30 @@ interface SeedScan {
   humidity: number;
 }
 
-const SEED_SCANS: SeedScan[] = [
-  { label: 'healthy', daysBack: 1, lat: 13.7, lon: -89.2, temperature: 28, humidity: 65 },
-  { label: 'healthy', daysBack: 3, lat: 13.69, lon: -89.19, temperature: 27, humidity: 70 },
-  { label: 'healthy', daysBack: 7, lat: 13.71, lon: -89.21, temperature: 29, humidity: 60 },
-  { label: 'common_rust', daysBack: 2, lat: 13.68, lon: -89.18, temperature: 26, humidity: 80 },
-  { label: 'common_rust', daysBack: 5, lat: 13.72, lon: -89.22, temperature: 25, humidity: 85 },
-  { label: 'northern_leaf_blight', daysBack: 1, lat: 13.67, lon: -89.17, temperature: 24, humidity: 90 },
-  { label: 'northern_leaf_blight', daysBack: 4, lat: 13.73, lon: -89.23, temperature: 23, humidity: 88 },
-  { label: 'gray_leaf_spot', daysBack: 2, lat: 13.66, lon: -89.16, temperature: 27, humidity: 75 },
-  { label: 'gray_leaf_spot', daysBack: 6, lat: 13.74, lon: -89.24, temperature: 26, humidity: 78 },
-  { label: 'lethal_necrosis', daysBack: 3, lat: 13.65, lon: -89.15, temperature: 30, humidity: 55 },
-  { label: 'fall_armyworm', daysBack: 1, lat: 13.64, lon: -89.14, temperature: 29, humidity: 60 },
-  { label: 'fall_armyworm', daysBack: 8, lat: 13.75, lon: -89.25, temperature: 28, humidity: 62 },
-  { label: 'nitrogen_deficiency', daysBack: 4, lat: 13.63, lon: -89.13, temperature: 31, humidity: 50 },
-  { label: 'nitrogen_deficiency', daysBack: 9, lat: 13.76, lon: -89.26, temperature: 30, humidity: 52 },
-  { label: 'phosphorus_deficiency', daysBack: 5, lat: 13.62, lon: -89.12, temperature: 28, humidity: 58 },
-  { label: 'potassium_deficiency', daysBack: 6, lat: 13.61, lon: -89.11, temperature: 27, humidity: 63 },
-  { label: 'potassium_deficiency', daysBack: 10, lat: 13.77, lon: -89.27, temperature: 26, humidity: 66 },
-  { label: 'healthy', daysBack: 12, lat: 13.7, lon: -89.2, temperature: 28, humidity: 64 },
-  { label: 'common_rust', daysBack: 14, lat: 13.69, lon: -89.19, temperature: 25, humidity: 82 },
-  { label: 'fall_armyworm', daysBack: 15, lat: 13.68, lon: -89.18, temperature: 29, humidity: 59 },
-];
+// const SEED_SCANS: SeedScan[] = [
+//   { label: 'healthy', daysBack: 1, lat: 13.7, lon: -89.2, temperature: 28, humidity: 65 },
+//   { label: 'healthy', daysBack: 3, lat: 13.69, lon: -89.19, temperature: 27, humidity: 70 },
+//   { label: 'healthy', daysBack: 7, lat: 13.71, lon: -89.21, temperature: 29, humidity: 60 },
+//   { label: 'common_rust', daysBack: 2, lat: 13.68, lon: -89.18, temperature: 26, humidity: 80 },
+//   { label: 'common_rust', daysBack: 5, lat: 13.72, lon: -89.22, temperature: 25, humidity: 85 },
+//   { label: 'northern_leaf_blight', daysBack: 1, lat: 13.67, lon: -89.17, temperature: 24, humidity: 90 },
+//   { label: 'northern_leaf_blight', daysBack: 4, lat: 13.73, lon: -89.23, temperature: 23, humidity: 88 },
+//   { label: 'gray_leaf_spot', daysBack: 2, lat: 13.66, lon: -89.16, temperature: 27, humidity: 75 },
+//   { label: 'gray_leaf_spot', daysBack: 6, lat: 13.74, lon: -89.24, temperature: 26, humidity: 78 },
+//   { label: 'lethal_necrosis', daysBack: 3, lat: 13.65, lon: -89.15, temperature: 30, humidity: 55 },
+//   { label: 'fall_armyworm', daysBack: 1, lat: 13.64, lon: -89.14, temperature: 29, humidity: 60 },
+//   { label: 'fall_armyworm', daysBack: 8, lat: 13.75, lon: -89.25, temperature: 28, humidity: 62 },
+//   { label: 'nitrogen_deficiency', daysBack: 4, lat: 13.63, lon: -89.13, temperature: 31, humidity: 50 },
+//   { label: 'nitrogen_deficiency', daysBack: 9, lat: 13.76, lon: -89.26, temperature: 30, humidity: 52 },
+//   { label: 'phosphorus_deficiency', daysBack: 5, lat: 13.62, lon: -89.12, temperature: 28, humidity: 58 },
+//   { label: 'potassium_deficiency', daysBack: 6, lat: 13.61, lon: -89.11, temperature: 27, humidity: 63 },
+//   { label: 'potassium_deficiency', daysBack: 10, lat: 13.77, lon: -89.27, temperature: 26, humidity: 66 },
+//   { label: 'healthy', daysBack: 12, lat: 13.7, lon: -89.2, temperature: 28, humidity: 64 },
+//   { label: 'common_rust', daysBack: 14, lat: 13.69, lon: -89.19, temperature: 25, humidity: 82 },
+//   { label: 'fall_armyworm', daysBack: 15, lat: 13.68, lon: -89.18, temperature: 29, humidity: 59 },
+// ];
+
+const SEED_SCANS: SeedScan[] = [];
 
 export async function seedDevData(): Promise<void> {
   const scansCollection = database.collections.get<Scan>('scans');
