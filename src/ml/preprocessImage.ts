@@ -26,6 +26,9 @@ export async function preprocessImage(imageUri: string, size: number): Promise<F
 
   let context = ImageManipulator.manipulate(imageUri);
   if (rotationDegrees !== 0) {
+    // Asume que ImageManipulator NO aplica ya la rotacion EXIF por si solo (comportamiento no
+    // documentado en el SDK de Expo); verificar manualmente en dispositivo con una foto apaisada
+    // real de la app de camara de fabrica antes de publicar (Manual en dispositivo).
     context = context.rotate(rotationDegrees);
   }
   const rendered = await context.resize({ width: size, height: size }).renderAsync();
