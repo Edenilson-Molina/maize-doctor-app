@@ -34,13 +34,15 @@ jest.mock('@/data/queries/scanQueries', () => ({
   updateScanResult: jest.fn().mockResolvedValue(undefined),
 }));
 
+const mockPredict = jest.fn().mockResolvedValue({
+  label: 'common_rust',
+  confidence: 0.82,
+  distribution: { common_rust: 0.82, healthy: 0.18 },
+});
+
 jest.mock('@/ml', () => ({
   getInferenceEngine: () => ({
-    predict: jest.fn().mockResolvedValue({
-      label: 'common_rust',
-      confidence: 0.82,
-      distribution: { common_rust: 0.82, healthy: 0.18 },
-    }),
+    predict: mockPredict,
   }),
 }));
 
@@ -72,6 +74,11 @@ describe('ScanScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockPermission = { granted: true };
+    mockPredict.mockReset().mockResolvedValue({
+      label: 'common_rust',
+      confidence: 0.82,
+      distribution: { common_rust: 0.82, healthy: 0.18 },
+    });
   });
 
   it('shows a permission request when access is denied', async () => {
@@ -116,5 +123,15 @@ describe('ScanScreen', () => {
     );
 
     expect(await findByText('ScanResult: common_rust')).toBeTruthy();
+  });
+
+  it('shows an inline error and stops the spinner when inference fails, without navigating', async () => {
+    mockPredict.mockRejectedValueOnce(new Error('modelo no disponible'));
+    const { getByLabelText, findByText, queryByText } = await renderScanScreen();
+
+    fireEvent.press(getByLabelText('Tomar foto'));
+
+    expect(await findByText('No se pudo analizar la foto. Intente de nuevo.')).toBeTruthy();
+    expect(queryByText(/ScanResult:/)).toBeNull();
   });
 });

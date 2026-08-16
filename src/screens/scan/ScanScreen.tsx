@@ -8,6 +8,7 @@ import { LeafOverlay } from './LeafOverlay';
 import { savePhotoFile } from '@/data/scanStorage';
 import { createScan, updateScanResult } from '@/data/queries/scanQueries';
 import { getInferenceEngine } from '@/ml';
+import { logger } from '@/lib/logger';
 import type { ScanStackParamList } from '@/navigation/types';
 
 type Props = NativeStackScreenProps<ScanStackParamList, 'ScanCamera'>;
@@ -17,25 +18,35 @@ export function ScanScreen({ navigation }: Props) {
   const [facing, setFacing] = useState<CameraType>('back');
   const [flash, setFlash] = useState<FlashMode>('off');
   const [isSaving, setIsSaving] = useState(false);
+  const [scanError, setScanError] = useState(false);
   const cameraRef = useRef<CameraView>(null);
 
   async function persistScan(imageUri: string) {
     setIsSaving(true);
+    setScanError(false);
     try {
       const finalUri = await savePhotoFile(imageUri);
       const scan = await createScan({ imageUri: finalUri, label: null });
-      const result = await getInferenceEngine().predict(finalUri);
-      await updateScanResult(scan, result);
+      try {
+        const result = await getInferenceEngine().predict(finalUri);
+        await updateScanResult(scan, result);
 
-      navigation.navigate('ScanResult', {
-        imageUri: finalUri,
-        label: result.label,
-        confidence: result.confidence,
-        distribution: result.distribution,
-        temperature: null,
-        humidity: null,
-        createdAt: Date.now(),
-      });
+        navigation.navigate('ScanResult', {
+          imageUri: finalUri,
+          label: result.label,
+          confidence: result.confidence,
+          distribution: result.distribution,
+          temperature: null,
+          humidity: null,
+          createdAt: Date.now(),
+        });
+      } catch (error) {
+        logger.error(
+          `No se pudo analizar el escaneo ${scan.id} (imagen ya guardada en ${finalUri})`,
+          error,
+        );
+        setScanError(true);
+      }
     } finally {
       setIsSaving(false);
     }
@@ -111,7 +122,11 @@ export function ScanScreen({ navigation }: Props) {
         <View className="absolute bottom-32 left-0 right-0 items-center">
           <View className="bg-black/60 px-6 py-2 rounded-full border border-white/10">
             <Text className="font-label-md text-label-md text-white">
-              {isSaving ? 'Analizando hoja…' : 'Coloque la hoja en el centro'}
+              {isSaving
+                ? 'Analizando hoja…'
+                : scanError
+                  ? 'No se pudo analizar la foto. Intente de nuevo.'
+                  : 'Coloque la hoja en el centro'}
             </Text>
           </View>
         </View>
