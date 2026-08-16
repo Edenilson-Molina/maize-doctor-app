@@ -1,9 +1,6 @@
 {
-  "model": "efficientnet_b0",
-  "image_size": [
-    224,
-    224
-  ],
+  "model": "shufflenet_v2_x1_0",
+  "image_size": [224, 224],
   "labels": [
     "common_rust",
     "fall_armyworm",
