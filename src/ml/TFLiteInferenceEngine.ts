@@ -10,16 +10,7 @@ const INPUT_SIZE = 224;
 const LABELS = labelsData.labels as DiagnosisClass[];
 
 function resolveModelAsset(): number {
-  const candidate = process.env.EXPO_PUBLIC_MODEL_CANDIDATE ?? 'shufflenet_v2_x1_0';
-  switch (candidate) {
-    case 'efficientnet_b0':
-      return require('../../assets/model/candidates/efficientnet_b0/model_int8.tflite');
-    case 'efficientnet_lite0':
-      return require('../../assets/model/candidates/efficientnet_lite0/model_int8.tflite');
-    case 'shufflenet_v2_x1_0':
-    default:
-      return require('../../assets/model/candidates/shufflenet_v2_x1_0/model_int8.tflite');
-  }
+  return require('../../assets/model/model_int8.tflite');
 }
 
 /**
