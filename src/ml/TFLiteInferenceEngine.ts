@@ -1,6 +1,5 @@
 import { loadTensorflowModel, type TensorflowModel } from 'react-native-fast-tflite';
 import type { DiagnosisClass } from '@/content/diagnosis';
-import { logger } from '@/lib/logger';
 import type { InferenceEngine, InferenceResult } from './InferenceEngine';
 import { preprocessImage } from './preprocessImage';
 import { softmax } from './imageTensor';
@@ -21,13 +20,18 @@ function resolveModelAsset(): number {
  * pueden divergir.
  */
 export class TFLiteInferenceEngine implements InferenceEngine {
-  private modelPromise: Promise<TensorflowModel> | null = null;
+  private static modelPromise: Promise<TensorflowModel> | null = null;
 
   private async getModel(): Promise<TensorflowModel> {
-    if (!this.modelPromise) {
-      this.modelPromise = loadTensorflowModel(resolveModelAsset(), []);
+    if (!TFLiteInferenceEngine.modelPromise) {
+      TFLiteInferenceEngine.modelPromise = loadTensorflowModel(resolveModelAsset(), []).catch(
+        (err) => {
+          TFLiteInferenceEngine.modelPromise = null;
+          throw err;
+        },
+      );
     }
-    const model = await this.modelPromise;
+    const model = await TFLiteInferenceEngine.modelPromise;
     this.assertContract(model);
     return model;
   }

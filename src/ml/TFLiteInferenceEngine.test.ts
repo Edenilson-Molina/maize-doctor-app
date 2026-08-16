@@ -9,6 +9,10 @@ import labelsData from '../../assets/model/labels.json';
 
 describe('TFLiteInferenceEngine', () => {
   beforeEach(() => {
+    jest.clearAllMocks();
+    // Se resetea el cache estatico del modelo para que cada test dispare su propio loadTensorflowModel().
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (TFLiteInferenceEngine as any).modelPromise = null;
     (preprocessImage as jest.Mock).mockResolvedValue(new Float32Array(3 * 224 * 224));
   });
 
@@ -65,5 +69,9 @@ describe('TFLiteInferenceEngine', () => {
 
     const engine = new TFLiteInferenceEngine();
     await expect(engine.predict('file://leaf.jpg')).rejects.toThrow(/labels\.json/);
+  });
+
+  it('labels.json contiene exactamente las mismas clases que DIAGNOSIS_CLASSES (orden puede diferir)', () => {
+    expect([...labelsData.labels].sort()).toEqual([...DIAGNOSIS_CLASSES].sort());
   });
 });
