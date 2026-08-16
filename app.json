@@ -33,7 +33,8 @@
         {
           "photosPermission": "DoctorMaiz necesita acceso a tus fotos para analizar una imagen existente."
         }
-      ]
+      ],
+      "react-native-fast-tflite"
     ]
   }
 }
