@@ -13,7 +13,7 @@ describe('DIAGNOSIS_CLASSES', () => {
     const expected: DiagnosisClass[] = [
       'healthy',
       'common_rust',
-      'northern_leaf_blight',
+      'northern_corn_leaf_blight',
       'gray_leaf_spot',
       'lethal_necrosis',
       'fall_armyworm',

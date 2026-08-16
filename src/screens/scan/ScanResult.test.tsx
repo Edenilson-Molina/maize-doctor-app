@@ -47,7 +47,7 @@ describe('ScanResult', () => {
     const distribution: Record<DiagnosisClass, number> = {
       healthy: 0.4,
       common_rust: 0.35,
-      northern_leaf_blight: 0.05,
+      northern_corn_leaf_blight: 0.05,
       gray_leaf_spot: 0.05,
       lethal_necrosis: 0.05,
       fall_armyworm: 0.03,

@@ -60,7 +60,7 @@ describe('FastApiSyncClient', () => {
     const correction = {
       id: 'correction-1',
       scanId: 'scan-1',
-      observedLabel: 'northern_leaf_blight',
+      observedLabel: 'northern_corn_leaf_blight',
       note: 'Veo insectos',
       status: 'pending',
       createdAt: new Date('2026-08-12T10:05:00.000Z'),

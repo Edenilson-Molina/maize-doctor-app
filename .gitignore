@@ -39,3 +39,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# ML checkpoints (never belong in this repo — see corn-leaf-desease-project)
+*.pth

@@ -70,7 +70,7 @@ describe('ScanDetail', () => {
     await waitFor(() =>
       expect(mockCreateCorrection).toHaveBeenCalledWith({
         scanId: 'scan-1',
-        observedLabel: 'northern_leaf_blight',
+        observedLabel: 'northern_corn_leaf_blight',
         note: 'Veo insectos, no manchas',
       }),
     );

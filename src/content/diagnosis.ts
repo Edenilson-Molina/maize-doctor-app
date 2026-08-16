@@ -1,7 +1,7 @@
 export type DiagnosisClass =
   | 'healthy'
   | 'common_rust'
-  | 'northern_leaf_blight'
+  | 'northern_corn_leaf_blight'
   | 'gray_leaf_spot'
   | 'lethal_necrosis'
   | 'fall_armyworm'
@@ -12,7 +12,7 @@ export type DiagnosisClass =
 export const DIAGNOSIS_CLASSES: DiagnosisClass[] = [
   'healthy',
   'common_rust',
-  'northern_leaf_blight',
+  'northern_corn_leaf_blight',
   'gray_leaf_spot',
   'lethal_necrosis',
   'fall_armyworm',
@@ -50,7 +50,7 @@ export const DIAGNOSIS_MAP: Record<DiagnosisClass, DiagnosisInfo> = {
       'Considerar variedades resistentes para la proxima siembra. Confirmar con un especialista.',
     ],
   },
-  northern_leaf_blight: {
+  northern_corn_leaf_blight: {
     label: 'Tizon Foliar del Norte',
     description: 'Exserohilum turcicum — lesiones alargadas de color gris-verdoso en las hojas.',
     severity: 'high',
