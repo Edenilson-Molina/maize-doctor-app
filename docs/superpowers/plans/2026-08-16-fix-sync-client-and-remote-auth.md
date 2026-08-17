@@ -601,16 +601,16 @@ Create `src/api/RemoteSessionService.test.ts`:
 ```typescript
 import { RemoteSessionService } from './RemoteSessionService';
 
-const store = new Map<string, string>();
+const mockStore = new Map<string, string>();
 
 jest.mock('expo-secure-store', () => ({
   setItemAsync: jest.fn((key: string, value: string) => {
-    store.set(key, value);
+    mockStore.set(key, value);
     return Promise.resolve();
   }),
-  getItemAsync: jest.fn((key: string) => Promise.resolve(store.get(key) ?? null)),
+  getItemAsync: jest.fn((key: string) => Promise.resolve(mockStore.get(key) ?? null)),
   deleteItemAsync: jest.fn((key: string) => {
-    store.delete(key);
+    mockStore.delete(key);
     return Promise.resolve();
   }),
 }));
@@ -620,7 +620,7 @@ describe('RemoteSessionService', () => {
   let fetchMock: jest.Mock;
 
   beforeEach(() => {
-    store.clear();
+    mockStore.clear();
     process.env.EXPO_PUBLIC_API_URL = 'https://api.doctormaiz.test';
     fetchMock = jest.fn();
     global.fetch = fetchMock as unknown as typeof fetch;
@@ -709,7 +709,7 @@ describe('RemoteSessionService', () => {
   });
 
   it('refreshes and stores a new token pair', async () => {
-    store.set('doctormaiz_remote_refresh_token', 'refresh-1');
+    mockStore.set('doctormaiz_remote_refresh_token', 'refresh-1');
     fetchMock.mockResolvedValue({
       ok: true,
       json: async () => ({ accessToken: 'access-new', refreshToken: 'refresh-new' }),
@@ -730,8 +730,8 @@ describe('RemoteSessionService', () => {
   });
 
   it('clears local tokens on logout even if the remote call fails', async () => {
-    store.set('doctormaiz_remote_access_token', 'access-1');
-    store.set('doctormaiz_remote_refresh_token', 'refresh-1');
+    mockStore.set('doctormaiz_remote_access_token', 'access-1');
+    mockStore.set('doctormaiz_remote_refresh_token', 'refresh-1');
     fetchMock.mockRejectedValue(new Error('Network request failed'));
     const service = new RemoteSessionService();
 
@@ -849,7 +849,9 @@ export const remoteSession = new RemoteSessionService();
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `npx jest src/api/RemoteSessionService.test.ts`
-Expected: all 10 tests PASS.
+Expected: all 9 tests PASS.
+
+Note: the `jest.mock('expo-secure-store', ...)` factory above references the fake store, and Jest hoists `jest.mock` calls above variable declarations — so the variable **must** be named with a `mock` prefix (`mockStore`). Naming it `store` fails the whole suite with "The module factory of `jest.mock()` is not allowed to reference any out-of-scope variables."
 
 - [ ] **Step 5: Write the failing `AuthContext` wiring tests**
 

@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import type { AuthService, UserSession, AuthResult } from './AuthService';
 import { LocalAuthService } from './LocalAuthService';
+import { remoteSession } from '@/api/RemoteSessionService';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -30,6 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const result = await authService.login(email, password);
     if (result.success && result.user) {
       setUser(result.user);
+      remoteSession.login(email, password).catch(() => {});
     }
     return result;
   };
@@ -42,12 +44,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const result = await authService.register(name, email, password);
     if (result.success && result.user) {
       setUser(result.user);
+      remoteSession.register(name, email, password).catch(() => {});
     }
     return result;
   };
 
   const logout = async (): Promise<void> => {
     await authService.logout();
+    remoteSession.logout().catch(() => {});
     setUser(null);
   };
 
