@@ -40,7 +40,7 @@ Separately again, the app currently *requires* an account before it will show an
 **Interfaces:**
 - Produces: `SyncClient` interface now has exactly two methods, `syncCorrection` and `syncContribution` — no `syncScan`. Every later task in this plan builds on this narrower interface.
 
-- [ ] **Step 1: Update the failing/changing tests first**
+- [x] **Step 1: Update the failing/changing tests first**
 
 Replace the full contents of `src/api/MockSyncClient.test.ts`:
 
@@ -349,7 +349,7 @@ describe('getScanById', () => {
 });
 ```
 
-- [ ] **Step 2: Run the updated tests to verify they fail**
+- [x] **Step 2: Run the updated tests to verify they fail**
 
 Run: `npx jest src/api/MockSyncClient.test.ts src/api/FastApiSyncClient.test.ts src/api/syncQueue.test.ts src/data/queries/scanQueries.test.ts`
 
@@ -362,7 +362,7 @@ Expected, per file — do not treat the two already-passing files as a problem:
 
 Note: this project runs Jest through `jest-expo`/`babel-jest`, which strips types without typechecking. A mismatched `SyncClient` interface will **not** fail Jest on its own — only the runtime `syncScan is not a function` in `syncQueue` does. Interface drift is caught by `npx tsc --noEmit` in Step 9, not here.
 
-- [ ] **Step 3: Update `SyncClient.ts`**
+- [x] **Step 3: Update `SyncClient.ts`**
 
 Replace the full contents of `src/api/SyncClient.ts`:
 
@@ -376,7 +376,7 @@ export interface SyncClient {
 }
 ```
 
-- [ ] **Step 4: Update `MockSyncClient.ts`**
+- [x] **Step 4: Update `MockSyncClient.ts`**
 
 Replace the full contents of `src/api/MockSyncClient.ts`:
 
@@ -404,7 +404,7 @@ export class MockSyncClient implements SyncClient {
 }
 ```
 
-- [ ] **Step 5: Update `FastApiSyncClient.ts`**
+- [x] **Step 5: Update `FastApiSyncClient.ts`**
 
 Replace the full contents of `src/api/FastApiSyncClient.ts`:
 
@@ -450,7 +450,7 @@ export class FastApiSyncClient implements SyncClient {
 }
 ```
 
-- [ ] **Step 6: Update `syncQueue.ts`**
+- [x] **Step 6: Update `syncQueue.ts`**
 
 Replace the full contents of `src/api/syncQueue.ts`:
 
@@ -501,7 +501,7 @@ export function startSyncListener(): () => void {
 }
 ```
 
-- [ ] **Step 7: Remove the now-unused scan-sync query functions**
+- [x] **Step 7: Remove the now-unused scan-sync query functions**
 
 In `src/data/queries/scanQueries.ts`, delete the `getUnsyncedScans` and `markScanSynced` functions (currently lines 32-42, right before `createScan`):
 
@@ -522,12 +522,12 @@ export async function markScanSynced(scan: Scan): Promise<void> {
 
 The `synced` field itself stays on the `Scan` model/schema (it's still meaningful — scans genuinely are never synced to the backend by design, and dropping a WatermelonDB column is a separate, riskier migration concern out of this plan's scope).
 
-- [ ] **Step 8: Run the tests to verify they pass**
+- [x] **Step 8: Run the tests to verify they pass**
 
 Run: `npx jest src/api src/data/queries/scanQueries.test.ts`
 Expected: all PASS.
 
-- [ ] **Step 9: Typecheck and run the full test suite**
+- [x] **Step 9: Typecheck and run the full test suite**
 
 Run: `npx tsc --noEmit`
 Expected: no errors (confirms no other file still references `syncScan`/`getUnsyncedScans`/`markScanSynced`).
@@ -535,7 +535,7 @@ Expected: no errors (confirms no other file still references `syncScan`/`getUnsy
 Run: `npx jest`
 Expected: all PASS, no regressions elsewhere.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add src/api/SyncClient.ts src/api/MockSyncClient.ts src/api/MockSyncClient.test.ts src/api/FastApiSyncClient.ts src/api/FastApiSyncClient.test.ts src/api/syncQueue.ts src/api/syncQueue.test.ts src/data/queries/scanQueries.ts src/data/queries/scanQueries.test.ts
@@ -552,7 +552,7 @@ git commit -m "fix(sync): remove /scans sync call, which has no matching API rou
 **Interfaces:**
 - None (configuration documentation only).
 
-- [ ] **Step 1: Edit `.env.example`**
+- [x] **Step 1: Edit `.env.example`**
 
 Replace the full contents of `.env.example`:
 
@@ -567,12 +567,12 @@ EXPO_PUBLIC_USE_MOCK_MODEL=true
 EXPO_PUBLIC_API_URL=
 ```
 
-- [ ] **Step 2: Verify**
+- [x] **Step 2: Verify**
 
 Run: `git diff .env.example`
 Expected: clean two-line addition (blank line + comment block + `EXPO_PUBLIC_API_URL=`), no unrelated changes.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add .env.example
@@ -594,7 +594,7 @@ git commit -m "docs: document EXPO_PUBLIC_API_URL in .env.example"
 **Why `register` falls back to `login` on 409:** local and remote accounts are independent stores. `LocalAuthService` only knows about accounts registered on *this* device, so a user who already registered on another device — or who reinstalled the app, or registered before `EXPO_PUBLIC_API_URL` was configured — will pass local registration and then hit a remote 409. Because `AuthContext` calls `remoteSession.register(...)` fire-and-forget with `.catch(() => {})`, a thrown 409 would be swallowed silently and that user would **never** obtain a token, so their contributions would never sync — with no error surfaced anywhere. Since local registration already proved the user knows this email/password pair, retrying as a login is the correct recovery. If the password does not match the remote account, the resulting 401 propagates normally (and is swallowed by the same fire-and-forget `.catch`, leaving sync disabled until the user logs in explicitly from Profile — Task 8).
 - Consumes (Task 4 of this plan): `remoteSession.getAccessToken()` and `remoteSession.refreshAccessToken()`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `src/api/RemoteSessionService.test.ts`:
 
@@ -742,12 +742,12 @@ describe('RemoteSessionService', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npx jest src/api/RemoteSessionService.test.ts`
 Expected: `Cannot find module './RemoteSessionService'`.
 
-- [ ] **Step 3: Implement `RemoteSessionService`**
+- [x] **Step 3: Implement `RemoteSessionService`**
 
 Create `src/api/RemoteSessionService.ts`:
 
@@ -846,14 +846,14 @@ export class RemoteSessionService {
 export const remoteSession = new RemoteSessionService();
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `npx jest src/api/RemoteSessionService.test.ts`
 Expected: all 9 tests PASS.
 
 Note: the `jest.mock('expo-secure-store', ...)` factory above references the fake store, and Jest hoists `jest.mock` calls above variable declarations — so the variable **must** be named with a `mock` prefix (`mockStore`). Naming it `store` fails the whole suite with "The module factory of `jest.mock()` is not allowed to reference any out-of-scope variables."
 
-- [ ] **Step 5: Write the failing `AuthContext` wiring tests**
+- [x] **Step 5: Write the failing `AuthContext` wiring tests**
 
 Create `src/auth/AuthContext.test.tsx`:
 
@@ -972,12 +972,12 @@ describe('AuthContext remote mirroring', () => {
 });
 ```
 
-- [ ] **Step 6: Run tests to verify they fail**
+- [x] **Step 6: Run tests to verify they fail**
 
 Run: `npx jest src/auth/AuthContext.test.tsx`
 Expected: failures — `mockRemoteLogin`/`mockRemoteRegister`/`mockRemoteLogout` never called, because `AuthContext.tsx` doesn't import `remoteSession` yet.
 
-- [ ] **Step 7: Wire `remoteSession` into `AuthContext.tsx`**
+- [x] **Step 7: Wire `remoteSession` into `AuthContext.tsx`**
 
 In `src/auth/AuthContext.tsx`, add the import alongside the existing ones:
 
@@ -1062,12 +1062,12 @@ to:
   };
 ```
 
-- [ ] **Step 8: Run tests to verify they pass**
+- [x] **Step 8: Run tests to verify they pass**
 
 Run: `npx jest src/auth`
 Expected: all PASS, including the 5 new `AuthContext.test.tsx` tests and the pre-existing `validation.test.ts`.
 
-- [ ] **Step 9: Typecheck and run the full test suite**
+- [x] **Step 9: Typecheck and run the full test suite**
 
 Run: `npx tsc --noEmit`
 Expected: no errors.
@@ -1075,7 +1075,7 @@ Expected: no errors.
 Run: `npx jest`
 Expected: all PASS.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add src/api/RemoteSessionService.ts src/api/RemoteSessionService.test.ts src/auth/AuthContext.tsx src/auth/AuthContext.test.tsx
@@ -1094,7 +1094,7 @@ git commit -m "feat(auth): mirror local login/register/logout to a backend JWT s
 - Consumes: `remoteSession.getAccessToken()` / `remoteSession.refreshAccessToken()` (Task 3).
 - Produces: an internal `sendWithAuthRetry(request: (token: string | null) => Promise<Response>): Promise<Response>` helper, reused by Task 5's `postMultipart`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `src/api/FastApiSyncClient.test.ts`, add this mock block right after the existing imports at the top of the file:
 
@@ -1222,12 +1222,12 @@ Then add these three tests at the end of the `describe('FastApiSyncClient', ...)
   });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npx jest src/api/FastApiSyncClient.test.ts`
 Expected: the 3 new tests FAIL (no `Authorization` header is ever sent yet); pre-existing tests keep passing.
 
-- [ ] **Step 3: Implement the auth-aware `post`**
+- [x] **Step 3: Implement the auth-aware `post`**
 
 In `src/api/FastApiSyncClient.ts`, add the import:
 
@@ -1290,17 +1290,17 @@ async function post(path: string, body: unknown): Promise<void> {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `npx jest src/api/FastApiSyncClient.test.ts`
 Expected: all tests PASS, including the 3 new ones and every pre-existing test (the pre-existing ones default `mockGetAccessToken` to `null`, so their header assertions of `{ 'Content-Type': 'application/json' }` still match exactly, since `...(null ? ... : {})` spreads nothing).
 
-- [ ] **Step 5: Run the full test suite**
+- [x] **Step 5: Run the full test suite**
 
 Run: `npx jest`
 Expected: all PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/api/FastApiSyncClient.ts src/api/FastApiSyncClient.test.ts
@@ -1319,7 +1319,7 @@ git commit -m "feat(sync): attach bearer token to sync requests, refresh once on
 - Consumes: `sendWithAuthRetry` (Task 4).
 - Produces: `postMultipart(path: string, formData: FormData): Promise<void>`, used only by `syncContribution`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `src/api/FastApiSyncClient.test.ts`, add this fake `FormData` near the top of the file, right after the mock block added in Task 4:
 
@@ -1401,12 +1401,12 @@ Replace the existing test `'posts a contribution to /dataset-contributions with 
   });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npx jest src/api/FastApiSyncClient.test.ts`
 Expected: the contribution-related tests FAIL — `syncContribution` still sends a JSON body, not a `FakeFormData` instance.
 
-- [ ] **Step 3: Implement `postMultipart` and rewrite `syncContribution`**
+- [x] **Step 3: Implement `postMultipart` and rewrite `syncContribution`**
 
 In `src/api/FastApiSyncClient.ts`, add `postMultipart` right after `post`:
 
@@ -1465,12 +1465,12 @@ with:
 
 No `Content-Type` header is set for the multipart request — `fetch`'s React Native implementation sets the correct `multipart/form-data; boundary=...` header automatically when the body is a `FormData` instance; setting it manually would omit the boundary and break the API's multipart parsing.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `npx jest src/api/FastApiSyncClient.test.ts`
 Expected: all tests PASS.
 
-- [ ] **Step 5: Run the full test suite and typecheck**
+- [x] **Step 5: Run the full test suite and typecheck**
 
 Run: `npx tsc --noEmit`
 Expected: no errors.
@@ -1478,11 +1478,11 @@ Expected: no errors.
 Run: `npx jest`
 Expected: all PASS.
 
-- [ ] **Step 6: Manually verify against a running API (optional but recommended before merging)**
+- [ ] **Step 6: Manually verify against a running API (optional but recommended before merging)** — NOT DONE: requires Docker + a running maize-doctor-api; marked optional in the plan. See the handoff note at the end of this file.
 
 With `maize-doctor-api` running locally (`docker compose up -d mysql && uvicorn app.main:app --reload`, per that repo's README) and this app's `.env` pointing `EXPO_PUBLIC_API_URL` at it, register a user, add a dataset contribution from the app's Contribute screen, and confirm in the API logs / DB that `POST /dataset-contributions` returns `201`, not `422`/`401`. This is the first time these two repos will have actually talked to each other successfully.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/api/FastApiSyncClient.ts src/api/FastApiSyncClient.test.ts
@@ -1510,7 +1510,7 @@ Verified by running the summary directly: total **31,623** (3,551 lab + 28,072 r
 
 On Windows, `make summary` crashes with `UnicodeEncodeError` (cp1252 console) while *printing* an otherwise-correct report. Run it as `PYTHONIOENCODING=utf-8 ./venv/Scripts/python src/analysis/dataset_summary.py` instead.
 
-- [ ] **Step 1: Generate the current per-class/environment counts**
+- [x] **Step 1: Generate the current per-class/environment counts**
 
 In `maize-doctor-classifier` (a sibling checkout, not this repo), run:
 
@@ -1520,7 +1520,7 @@ make summary
 
 Expected: prints a per-class, per-environment (`lab`/`real`) image count table reflecting the current `clean/` dataset (33,438 total).
 
-- [ ] **Step 2: Update the total-count line**
+- [x] **Step 2: Update the total-count line**
 
 In `model-ml.md`, find the line (near the class table):
 
@@ -1530,15 +1530,15 @@ In `model-ml.md`, find the line (near the class table):
 
 Replace `31 622 imágenes (3 551 lab + 28 071 campo real)` with the real total and lab/real breakdown from Step 1's `make summary` output, and update `(junio 2026)` to the correct month of that run. Keep the rest of the sentence (the `aphids_pest`/`lethal_necrosis` note) unchanged — that's historical context, not a count.
 
-- [ ] **Step 3: Update the per-class table**
+- [x] **Step 3: Update the per-class table**
 
 In `model-ml.md`, replace the `Lab`/`Real`/`Total` columns in both class tables (foliar diseases/pests, and nutritional deficiencies) with the real per-class counts from Step 1's `make summary` output. Do not recompute or estimate — copy the tool's actual output. If any class's "(pocos datos)" annotation no longer applies given the new counts, remove it for that class; if a previously-unflagged class now qualifies, add it.
 
-- [ ] **Step 4: Verify the doc renders**
+- [x] **Step 4: Verify the doc renders**
 
 If this repo has a docs build script, run it (check `package.json` for a `docs:build`-style script) and confirm it exits cleanly. If none exists, visually diff the table for markdown table alignment (`|` columns must still line up / parse as a valid table).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add model-ml.md
@@ -1558,7 +1558,7 @@ git commit -m "docs: refresh dataset stats in model-ml.md to the post-expansion 
 
 **Context:** `model-ml.md`'s headline claim is fully-offline on-device inference, but `getInferenceEngine()` defaults to `MockInferenceEngine` (random fake predictions) unless `EXPO_PUBLIC_USE_MOCK_MODEL` is explicitly set to `'false'`. Nothing currently stops a production build from shipping with that flag unset. `src/lib/logger.ts`'s `warn`/`error` are gated on `__DEV__` and are silent no-ops in production, so a log-based warning would never actually be seen in the one build where it matters — the only reliable guard is to throw and make the app crash on launch, which any manual QA pass before a store submission would catch immediately.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Replace the full contents of `src/ml/index.test.ts`:
 
@@ -1617,12 +1617,12 @@ describe('getInferenceEngine', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npx jest src/ml/index.test.ts`
 Expected: the two new tests fail — `getInferenceEngine()` currently never throws and ignores `__DEV__` entirely.
 
-- [ ] **Step 3: Implement the guard**
+- [x] **Step 3: Implement the guard**
 
 Replace the full contents of `src/ml/index.ts`:
 
@@ -1647,12 +1647,12 @@ export const getInferenceEngine = (): InferenceEngine => {
 };
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `npx jest src/ml/index.test.ts`
 Expected: all 4 tests PASS.
 
-- [ ] **Step 5: Run the full test suite and typecheck**
+- [x] **Step 5: Run the full test suite and typecheck**
 
 Run: `npx tsc --noEmit`
 Expected: no errors.
@@ -1660,7 +1660,7 @@ Expected: no errors.
 Run: `npx jest`
 Expected: all PASS (in particular, confirm no other test imports `getInferenceEngine` without setting `__DEV__`/`EXPO_PUBLIC_USE_MOCK_MODEL` in a way that would now unexpectedly throw — `ScanScreen.test.tsx` and similar are the ones to check first since they exercise the scan flow).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/ml/index.ts src/ml/index.test.ts
@@ -1692,7 +1692,7 @@ This task inverts the gate rather than adding a "guest mode" flag, because the a
 
 The only behavioral change beyond routing is in `ProfileScreen`, which must offer "Iniciar sesión" when signed out instead of "Cerrar Sesión".
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Replace the full contents of `src/navigation/RootNavigator.test.tsx`:
 
@@ -1808,12 +1808,12 @@ In `src/auth/AuthContext.test.tsx` (created in Task 3), add this test inside the
   });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npx jest src/navigation/RootNavigator.test.tsx src/auth/AuthContext.test.tsx`
 Expected: the RootNavigator tests fail (a session-less render still shows `'Iniciar Sesion'`, never `'Hola, Agricultor'`), and the two `isGuest` tests fail (`AuthState` has no `isGuest` yet).
 
-- [ ] **Step 3: Add `isGuest` to `AuthContext.tsx`**
+- [x] **Step 3: Add `isGuest` to `AuthContext.tsx`**
 
 In `src/auth/AuthContext.tsx`, add `isGuest` to the `AuthState` interface, right after `isAuthenticated`:
 
@@ -1829,7 +1829,7 @@ and to the provider's `value`, right after the existing `isAuthenticated` entry:
         isGuest: user === null,
 ```
 
-- [ ] **Step 4: Add the `Auth` route to `types.ts`**
+- [x] **Step 4: Add the `Auth` route to `types.ts`**
 
 In `src/navigation/types.ts`, add an `Auth` entry to `AppTabParamList`:
 
@@ -1843,7 +1843,7 @@ export type AppTabParamList = {
 };
 ```
 
-- [ ] **Step 5: Invert the gate in `RootNavigator.tsx`**
+- [x] **Step 5: Invert the gate in `RootNavigator.tsx`**
 
 Register `AuthNavigator` as a hidden tab screen so Profile can navigate to it. Inside `AppTabsNavigator`, add it after the existing `Profile` screen:
 
@@ -1884,7 +1884,7 @@ with:
   const { isLoading } = useAuth();
 ```
 
-- [ ] **Step 6: Offer sign-in from `ProfileScreen`**
+- [x] **Step 6: Offer sign-in from `ProfileScreen`**
 
 In `src/screens/profile/ProfileScreen.tsx`, take `isGuest` and the tab navigation:
 
@@ -1944,7 +1944,7 @@ Add a line of guest-facing copy explaining what an account buys, directly above 
       ) : null}
 ```
 
-- [ ] **Step 7: Return to the app after a successful login**
+- [x] **Step 7: Return to the app after a successful login**
 
 `LoginScreen` and `RegisterScreen` previously relied on the root gate swapping the whole tree on success. Now that `AppTabsNavigator` is always mounted, a successful login inside the pushed `Auth` stack must pop back explicitly.
 
@@ -1971,12 +1971,12 @@ to:
 
 Apply the same change to `RegisterScreen.tsx`'s submit handler success branch.
 
-- [ ] **Step 8: Run tests to verify they pass**
+- [x] **Step 8: Run tests to verify they pass**
 
 Run: `npx jest src/navigation src/auth src/screens/auth src/screens/profile`
 Expected: all PASS, including `LoginScreen.test.tsx`. If `LoginScreen.test.tsx` asserted anything about post-login navigation via the old root swap, update that assertion to the `getParent()?.navigate('Profile')` behavior rather than reverting Step 7.
 
-- [ ] **Step 9: Typecheck and run the full test suite**
+- [x] **Step 9: Typecheck and run the full test suite**
 
 Run: `npx tsc --noEmit`
 Expected: no errors (confirms the `Auth` route addition and the removed `isAuthenticated` destructure are consistent).
@@ -1984,7 +1984,7 @@ Expected: no errors (confirms the `Auth` route addition and the removed `isAuthe
 Run: `npx jest`
 Expected: all PASS.
 
-- [ ] **Step 10: Manually verify the offline-first guarantee end to end**
+- [ ] **Step 10: Manually verify the offline-first guarantee end to end** — NOT DONE: requires a device/emulator in airplane mode. Covered automatically by `RootNavigator.test.tsx` for steps 1 and 4; steps 2, 3 and 5 still need a real device.
 
 On a device or emulator with **airplane mode on** and no stored session:
 
@@ -1994,9 +1994,33 @@ On a device or emulator with **airplane mode on** and no stored session:
 4. Open Profile and confirm it offers "Iniciar Sesion", not "Cerrar Sesion".
 5. Turn airplane mode off, sign in, and confirm the queued scan's correction/contribution syncs on the next connectivity transition.
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add src/auth/AuthContext.tsx src/auth/AuthContext.test.tsx src/navigation/RootNavigator.tsx src/navigation/RootNavigator.test.tsx src/navigation/types.ts src/screens/profile/ProfileScreen.tsx src/screens/auth/LoginScreen.tsx src/screens/auth/RegisterScreen.tsx
 git commit -m "feat(auth): make the account optional so the app opens without logging in"
 ```
+
+---
+
+## Execution record (2026-08-17)
+
+Executed on branch `fix/sync-client-and-remote-auth`. All 8 tasks implemented and committed; final suite **153 passed / 28 suites**.
+
+### Environment prerequisites discovered during execution
+
+- `node_modules` was absent and `npm ci` fails on a **pre-existing** peer conflict: `react-native@0.86.0` pins `@react-native/jest-preset@0.86.0` while `package.json` and `jest-expo@57` require `^0.86.2`. Installed with `npm ci --legacy-peer-deps` (test-only package; `package.json` and the lockfile were left unmodified).
+- The **first** `npx jest` run after installing reports ~5 false failures (5000 ms timeouts in screen suites, 137 s total). Subsequent runs pass in ~11 s. Discard the first run before concluding anything is broken.
+- `npx tsc --noEmit` is **not** clean on this repo and never was: the baseline is **40 errors** — WatermelonDB decorator properties (`TS2564`), `database` possibly null (`TS18047`), and `Cannot find name 'global'` (`TS2304`) in test files from a missing `@types/node`. Tasks 4/5/7 add more `global` occurrences, all of the same pre-existing kind. **No production source file has a type error.** The per-task "Expected: no errors" instruction should be read as "no *new* errors in `src/**` non-test files".
+
+### Deviations from the plan as written
+
+1. **Task 3, test file** — the plan's `jest.mock('expo-secure-store', ...)` factory referenced a variable named `store`, which Jest rejects ("module factory ... not allowed to reference any out-of-scope variables"). Renamed to `mockStore`; the plan snippet has been corrected in place.
+2. **Task 3, `AuthContext.test.tsx`** — `renderHook` from `@testing-library/react-native@14` does not return a usable `result` in this setup. Rewritten to use `render` with a small `AuthProbe` component driving the context through `Pressable`s, matching the pattern already used by the repo's passing screen tests. Coverage is equivalent and was mutation-verified (removing the login mirroring fails 2 tests).
+3. **Task 6** — the plan's target figure of **33,438** was wrong for this document. That number is `outputs/splits/seed_42` (training splits, includes augmented images); `model-ml.md` explicitly reports `data/clean/`, whose real total is **31,623** (3,551 lab + 28,072 real). Only one cell was actually stale (`fall_armyworm` 4,857 → 4,858). See the corrected Context block in Task 6.
+4. **Task 8, `ProfileScreen.test.tsx`** — adding `useNavigation` to `ProfileScreen` required wrapping the test render in `NavigationContainer`. Also added a test asserting the guest-mode affordances.
+
+### Still outstanding
+
+- **Task 5, Step 6** — end-to-end check against a locally running `maize-doctor-api`. Field names were verified statically against `app/routers/contributions.py` and the API's own `tests/test_contributions.py` (`clientId`, `label`, `createdAt` as form fields + an `image` file + bearer token), but the two repos have still never exchanged a real request.
+- **Task 8, Step 10** — airplane-mode device walkthrough. Automated coverage exists for "launches to Home without a session" and "Profile offers Iniciar Sesión"; running a real scan offline and confirming sync-after-login still needs hardware.
