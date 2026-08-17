@@ -4,7 +4,9 @@
 
 **Goal:** Make the app's sync-to-backend feature actually work against the real `maize-doctor-api`, and stop the app from being able to silently ship without real on-device inference. A cross-repo audit found the sync feature is currently 100% non-functional: `FastApiSyncClient` posts to `/scans`, a route the API doesn't have; it never attaches an auth token, while `/corrections` and `/dataset-contributions` require one; the app's auth (`LocalAuthService`) never talks to the API at all, so no token ever exists to attach; and `syncContribution` sends JSON with a local file path instead of the `multipart/form-data` file upload the endpoint actually expects. Separately, the audit found that `EXPO_PUBLIC_USE_MOCK_MODEL` defaults to the mock predictor, and nothing stops a production build from shipping that way despite `model-ml.md`'s "fully offline inference" claim.
 
-**Architecture:** Keep `LocalAuthService` as the primary, offline-first account system (unchanged) — don't replace it or require server connectivity to use the app. Add a second, best-effort `RemoteSessionService` that mirrors local login/register to the backend when reachable, storing the resulting JWT pair via `expo-secure-store`. `FastApiSyncClient` reads that token to authenticate sync calls and refreshes it once on a 401. Remove the `/scans` sync call entirely (the API's README states scan telemetry is deliberately not collected — this isn't a missing endpoint to add, it's a stale client call to delete). Fix `syncContribution` to build a real `multipart/form-data` request.
+Separately again, the app currently *requires* an account before it will show anything: `RootNavigator` renders the login stack whenever there is no session, walling a first-run user off from the camera even though on-device inference needs no account at all. Task 8 inverts that gate.
+
+**Architecture:** Keep `LocalAuthService` as the primary, offline-first account system (unchanged) — don't replace it or require server connectivity to use the app. Treat the account as a *sync credential*, not an entry ticket: the app opens straight into the tabs, and login/register are reachable on demand from Profile (Task 8). Add a second, best-effort `RemoteSessionService` that mirrors local login/register to the backend when reachable, storing the resulting JWT pair via `expo-secure-store`. `FastApiSyncClient` reads that token to authenticate sync calls and refreshes it once on a 401. Remove the `/scans` sync call entirely (the API's README states scan telemetry is deliberately not collected — this isn't a missing endpoint to add, it's a stale client call to delete). Fix `syncContribution` to build a real `multipart/form-data` request.
 
 **Tech Stack:** TypeScript, React Native (Expo), Jest + `@testing-library/react-native`, `expo-secure-store`, WatermelonDB (unrelated to this plan except as the source of records being synced).
 
@@ -18,6 +20,7 @@
 - `EXPO_PUBLIC_API_URL` unset means "no backend configured" — `getSyncClient()` already falls back to `MockSyncClient` in that case (`src/api/index.ts:8`); `RemoteSessionService` must apply the same guard (no-op, not a thrown error) so `AuthContext` never has to special-case "is a backend even configured."
 - Do not touch `TFLiteInferenceEngine` / `MockInferenceEngine` internals or the preprocessing pipeline — those already work correctly per the audit. The only on-device-inference change in this plan (Task 7) is a guard around *which* engine `getInferenceEngine()` is allowed to return in a production build, not how either engine behaves.
 - `src/lib/logger.ts`'s `warn`/`error` are both gated on `__DEV__` and are no-ops in production — never use `logger` for something that must be visible/enforced specifically in a production build (Task 7); use a thrown error instead.
+- No account is ever required to scan, view history, or read a diagnosis. Nothing in this plan may add an auth check in front of those flows — signing in only enables *sync* of what the device already holds. The WatermelonDB schema is device-scoped (no `user_id` on any table), so records created while signed out remain valid and syncable after a later login, with no reassignment.
 
 ---
 
@@ -349,7 +352,15 @@ describe('getScanById', () => {
 - [ ] **Step 2: Run the updated tests to verify they fail**
 
 Run: `npx jest src/api/MockSyncClient.test.ts src/api/FastApiSyncClient.test.ts src/api/syncQueue.test.ts src/data/queries/scanQueries.test.ts`
-Expected: failures — the source files still export/import `syncScan`, `getUnsyncedScans`, `markScanSynced`, so TypeScript/Jest will error on the now-mismatched interface and unresolved imports.
+
+Expected, per file — do not treat the two already-passing files as a problem:
+
+- `src/api/syncQueue.test.ts` — **FAILS**. `syncQueue.ts` still calls `syncClient.syncScan(...)` and imports `getUnsyncedScans`/`markScanSynced`, but the rewritten mock client no longer provides `syncScan`.
+- `src/api/FastApiSyncClient.test.ts` — **FAILS**. The new `'propagates a network error…'` test is new coverage the current `post()` does not yet satisfy in isolation; the file also no longer exercises `/scans`.
+- `src/api/MockSyncClient.test.ts` — **PASSES already**. `MockSyncClient` implements `syncCorrection`/`syncContribution` today; this rewrite only *removes* the `syncScan` test.
+- `src/data/queries/scanQueries.test.ts` — **PASSES already**. It only covers `updateScanResult` and `getScanById`, both unchanged.
+
+Note: this project runs Jest through `jest-expo`/`babel-jest`, which strips types without typechecking. A mismatched `SyncClient` interface will **not** fail Jest on its own — only the runtime `syncScan is not a function` in `syncQueue` does. Interface drift is caught by `npx tsc --noEmit` in Step 9, not here.
 
 - [ ] **Step 3: Update `SyncClient.ts`**
 
@@ -578,7 +589,9 @@ git commit -m "docs: document EXPO_PUBLIC_API_URL in .env.example"
 - Modify: `src/auth/AuthContext.tsx`
 
 **Interfaces:**
-- Produces: `class RemoteSessionService` with `register(name: string, email: string, password: string): Promise<void>`, `login(email: string, password: string): Promise<void>`, `logout(): Promise<void>`, `getAccessToken(): Promise<string | null>`, `refreshAccessToken(): Promise<string | null>`. All methods no-op (resolve immediately, no network call) when `EXPO_PUBLIC_API_URL` is unset. `login`/`register` throw on a non-2xx response; `getAccessToken`/`refreshAccessToken` never throw (return `null` on any failure). A singleton instance is exported as `remoteSession`.
+- Produces: `class RemoteSessionService` with `register(name: string, email: string, password: string): Promise<void>`, `login(email: string, password: string): Promise<void>`, `logout(): Promise<void>`, `getAccessToken(): Promise<string | null>`, `refreshAccessToken(): Promise<string | null>`. All methods no-op (resolve immediately, no network call) when `EXPO_PUBLIC_API_URL` is unset. `login`/`register` throw on a non-2xx response, except that `register` treats a **409 (email already registered) as a fallback to `login`** rather than an error — see the rationale below. `getAccessToken`/`refreshAccessToken` never throw (return `null` on any failure). A singleton instance is exported as `remoteSession`.
+
+**Why `register` falls back to `login` on 409:** local and remote accounts are independent stores. `LocalAuthService` only knows about accounts registered on *this* device, so a user who already registered on another device — or who reinstalled the app, or registered before `EXPO_PUBLIC_API_URL` was configured — will pass local registration and then hit a remote 409. Because `AuthContext` calls `remoteSession.register(...)` fire-and-forget with `.catch(() => {})`, a thrown 409 would be swallowed silently and that user would **never** obtain a token, so their contributions would never sync — with no error surfaced anywhere. Since local registration already proved the user knows this email/password pair, retrying as a login is the correct recovery. If the password does not match the remote account, the resulting 401 propagates normally (and is swallowed by the same fire-and-forget `.catch`, leaving sync disabled until the user logs in explicitly from Profile — Task 8).
 - Consumes (Task 4 of this plan): `remoteSession.getAccessToken()` and `remoteSession.refreshAccessToken()`.
 
 - [ ] **Step 1: Write the failing tests**
@@ -643,6 +656,37 @@ describe('RemoteSessionService', () => {
     await service.register('Farmer', 'farmer2@example.com', 'secret');
 
     await expect(service.getAccessToken()).resolves.toBe('access-2');
+  });
+
+  it('falls back to login when the email is already registered (409)', async () => {
+    fetchMock
+      .mockResolvedValueOnce({ ok: false, status: 409 })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ accessToken: 'access-409', refreshToken: 'refresh-409' }),
+      });
+    const service = new RemoteSessionService();
+
+    await service.register('Farmer', 'farmer@example.com', 'secret');
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      'https://api.doctormaiz.test/auth/login',
+      expect.objectContaining({ method: 'POST' })
+    );
+    await expect(service.getAccessToken()).resolves.toBe('access-409');
+  });
+
+  it('propagates the login failure when a 409 fallback has the wrong password', async () => {
+    fetchMock
+      .mockResolvedValueOnce({ ok: false, status: 409 })
+      .mockResolvedValueOnce({ ok: false, status: 401 });
+    const service = new RemoteSessionService();
+
+    await expect(service.register('Farmer', 'farmer@example.com', 'wrong')).rejects.toThrow(
+      'Remote login failed with status 401'
+    );
+    await expect(service.getAccessToken()).resolves.toBeNull();
   });
 
   it('throws on a failed login without storing anything', async () => {
@@ -735,6 +779,12 @@ export class RemoteSessionService {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, email, password }),
     });
+
+    if (response.status === 409) {
+      await this.login(email, password);
+      return;
+    }
+
     if (!response.ok) {
       throw new Error(`Remote register failed with status ${response.status}`);
     }
@@ -757,10 +807,12 @@ export class RemoteSessionService {
   }
 
   async logout(): Promise<void> {
+    if (!process.env.EXPO_PUBLIC_API_URL) return;
+
     const refreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
     await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
     await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
-    if (!refreshToken || !process.env.EXPO_PUBLIC_API_URL) return;
+    if (!refreshToken) return;
     try {
       await fetch(apiUrl('/auth/logout'), {
         method: 'POST',
@@ -797,7 +849,7 @@ export const remoteSession = new RemoteSessionService();
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `npx jest src/api/RemoteSessionService.test.ts`
-Expected: all 8 tests PASS.
+Expected: all 10 tests PASS.
 
 - [ ] **Step 5: Write the failing `AuthContext` wiring tests**
 
@@ -1120,6 +1172,33 @@ Then add these three tests at the end of the `describe('FastApiSyncClient', ...)
     );
   });
 
+  it('refreshes on a 401 even when no access token was stored', async () => {
+    mockGetAccessToken.mockResolvedValue(null);
+    mockRefreshAccessToken.mockResolvedValue('fresh-token');
+    fetchMock
+      .mockResolvedValueOnce({ ok: false, status: 401 })
+      .mockResolvedValueOnce({ ok: true, status: 201 });
+    const client = new FastApiSyncClient();
+    const correction = {
+      id: 'correction-1',
+      scanId: 'scan-1',
+      observedLabel: 'healthy',
+      note: null,
+      status: 'pending',
+      createdAt: new Date('2026-08-12T10:05:00.000Z'),
+    } as unknown as Correction;
+
+    await client.syncCorrection(correction);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      'https://api.doctormaiz.test/corrections',
+      expect.objectContaining({
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer fresh-token' },
+      })
+    );
+  });
+
   it('throws when a 401 cannot be refreshed, without retrying again', async () => {
     mockGetAccessToken.mockResolvedValue('expired-token');
     mockRefreshAccessToken.mockResolvedValue(null);
@@ -1180,7 +1259,7 @@ async function sendWithAuthRetry(
   const accessToken = await remoteSession.getAccessToken();
   let response = await request(accessToken);
 
-  if (response.status === 401 && accessToken) {
+  if (response.status === 401) {
     const refreshedToken = await remoteSession.refreshAccessToken();
     if (refreshedToken) {
       response = await request(refreshedToken);
@@ -1575,4 +1654,338 @@ Expected: all PASS (in particular, confirm no other test imports `getInferenceEn
 ```bash
 git add src/ml/index.ts src/ml/index.test.ts
 git commit -m "fix(ml): fail loudly instead of silently shipping MockInferenceEngine in production"
+```
+
+---
+
+### Task 8: Make the account optional — open the app without logging in
+
+**Files:**
+- Modify: `src/auth/AuthContext.tsx`
+- Modify: `src/auth/AuthContext.test.tsx`
+- Modify: `src/navigation/RootNavigator.tsx`
+- Modify: `src/navigation/RootNavigator.test.tsx`
+- Modify: `src/navigation/types.ts`
+- Modify: `src/screens/profile/ProfileScreen.tsx`
+
+**Interfaces:**
+- Produces: `AuthState` gains `isGuest: boolean`. `AppTabParamList` gains an `Auth` route so Profile can push login/register on demand.
+- Modifies: `RootNavigator` always renders `AppTabsNavigator`; `AuthNavigator` becomes a pushed stack reachable from Profile instead of the app's entry gate.
+
+**Context:** The app is offline-first by design, and `LocalAuthService` is a purely on-device store — the account is a *sync credential*, not an entry ticket. But `RootNavigator.tsx:132` currently reads `{isAuthenticated ? <AppTabsNavigator /> : <AuthNavigator />}`, with no third branch: a first-run user is walled behind Login/Register before they can reach the camera. That contradicts the offline-first, "no account required" product goal, and it gates the one feature (on-device inference) that provably needs no account at all.
+
+This task inverts the gate rather than adding a "guest mode" flag, because the app is already almost compatible with a null user:
+
+- **No data migration is needed.** The WatermelonDB schema has no `user_id`/`userId` on any table (verified: no matches under `src/data/`). Scans, corrections, and contributions are already device-scoped, not user-scoped, so a scan created before logging in needs no reassignment afterward — it simply syncs once a session exists.
+- **The screens already tolerate a null user.** `HomeScreen.tsx:68` uses `user?.name?.split(' ')[0] ?? 'Agricultor'` and `ProfileScreen.tsx:11` uses `user?.name ?? 'Agricultor'`. Neither needs a null-guard added; the fallback copy is already written.
+
+The only behavioral change beyond routing is in `ProfileScreen`, which must offer "Iniciar sesión" when signed out instead of "Cerrar Sesión".
+
+- [ ] **Step 1: Write the failing tests**
+
+Replace the full contents of `src/navigation/RootNavigator.test.tsx`:
+
+```tsx
+jest.mock('@/data/database', () => ({
+  database: {
+    collections: {
+      get: jest.fn().mockReturnValue({
+        query: jest.fn().mockReturnValue({
+          fetch: jest.fn().mockResolvedValue([]),
+          fetchCount: jest.fn().mockResolvedValue(0),
+          observe: jest.fn().mockReturnValue({ subscribe: jest.fn() }),
+        }),
+      }),
+    },
+  },
+}));
+
+jest.mock('@/data/seedDevData', () => ({
+  seedDevData: jest.fn().mockResolvedValue(undefined),
+}));
+
+const mockGetStoredSession = jest.fn();
+
+jest.mock('@/auth/LocalAuthService', () => ({
+  LocalAuthService: jest.fn().mockImplementation(() => ({
+    login: jest.fn(),
+    register: jest.fn(),
+    logout: jest.fn(),
+    getStoredSession: () => mockGetStoredSession(),
+  })),
+}));
+
+jest.mock('@/api/RemoteSessionService', () => ({
+  remoteSession: {
+    login: jest.fn().mockResolvedValue(undefined),
+    register: jest.fn().mockResolvedValue(undefined),
+    logout: jest.fn().mockResolvedValue(undefined),
+  },
+}));
+
+import { render, waitFor } from '@testing-library/react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { AuthProvider } from '@/auth/AuthContext';
+import { RootNavigator } from './RootNavigator';
+
+const SAFE_AREA_METRICS = {
+  frame: { x: 0, y: 0, width: 390, height: 844 },
+  insets: { top: 47, left: 0, right: 0, bottom: 34 },
+};
+
+function renderWithProviders() {
+  return render(
+    <SafeAreaProvider initialMetrics={SAFE_AREA_METRICS}>
+      <AuthProvider>
+        <RootNavigator />
+      </AuthProvider>
+    </SafeAreaProvider>
+  );
+}
+
+describe('RootNavigator', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('lands on the app tabs without a session, not on the login screen', async () => {
+    mockGetStoredSession.mockResolvedValue(null);
+
+    const { queryByText, getByText } = renderWithProviders();
+
+    await waitFor(() => expect(getByText('Hola, Agricultor')).toBeTruthy());
+    expect(queryByText('Iniciar Sesion')).toBeNull();
+  });
+
+  it('lands on the app tabs when a stored session exists', async () => {
+    mockGetStoredSession.mockResolvedValue({
+      id: 'u1',
+      name: 'Farmer Uno',
+      email: 'farmer@example.com',
+    });
+
+    const { getByText } = renderWithProviders();
+
+    await waitFor(() => expect(getByText('Hola, Farmer')).toBeTruthy());
+  });
+});
+```
+
+In `src/auth/AuthContext.test.tsx` (created in Task 3), add this test inside the existing `describe` block:
+
+```tsx
+  it('reports guest state when there is no stored session', async () => {
+    mockGetStoredSession.mockResolvedValue(null);
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.isGuest).toBe(true);
+    expect(result.current.isAuthenticated).toBe(false);
+  });
+
+  it('reports authenticated state once a session exists', async () => {
+    mockGetStoredSession.mockResolvedValue({
+      id: 'u1',
+      name: 'Farmer',
+      email: 'farmer@example.com',
+    });
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.isGuest).toBe(false);
+    expect(result.current.isAuthenticated).toBe(true);
+  });
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run: `npx jest src/navigation/RootNavigator.test.tsx src/auth/AuthContext.test.tsx`
+Expected: the RootNavigator tests fail (a session-less render still shows `'Iniciar Sesion'`, never `'Hola, Agricultor'`), and the two `isGuest` tests fail (`AuthState` has no `isGuest` yet).
+
+- [ ] **Step 3: Add `isGuest` to `AuthContext.tsx`**
+
+In `src/auth/AuthContext.tsx`, add `isGuest` to the `AuthState` interface, right after `isAuthenticated`:
+
+```typescript
+  isAuthenticated: boolean;
+  isGuest: boolean;
+```
+
+and to the provider's `value`, right after the existing `isAuthenticated` entry:
+
+```typescript
+        isAuthenticated: user !== null,
+        isGuest: user === null,
+```
+
+- [ ] **Step 4: Add the `Auth` route to `types.ts`**
+
+In `src/navigation/types.ts`, add an `Auth` entry to `AppTabParamList`:
+
+```typescript
+export type AppTabParamList = {
+  Home: undefined;
+  Scan: undefined;
+  History: undefined;
+  Profile: undefined;
+  Auth: undefined;
+};
+```
+
+- [ ] **Step 5: Invert the gate in `RootNavigator.tsx`**
+
+Register `AuthNavigator` as a hidden tab screen so Profile can navigate to it. Inside `AppTabsNavigator`, add it after the existing `Profile` screen:
+
+```tsx
+      <AppTabs.Screen name="Profile" component={ProfileScreen} />
+      <AppTabs.Screen
+        name="Auth"
+        component={AuthNavigator}
+        options={{ tabBarButton: () => null, headerShown: false }}
+      />
+```
+
+`tabBarButton: () => null` keeps it out of the bottom bar while leaving it reachable via `navigation.navigate('Auth')`.
+
+Then replace the `RootNavigator` body:
+
+```tsx
+  return (
+    <NavigationContainer>
+      {isAuthenticated ? <AppTabsNavigator /> : <AuthNavigator />}
+    </NavigationContainer>
+  );
+```
+
+with:
+
+```tsx
+  return (
+    <NavigationContainer>
+      <AppTabsNavigator />
+    </NavigationContainer>
+  );
+```
+
+`isAuthenticated` is now unused in this component — remove it from the `useAuth()` destructure, keeping `isLoading` (the splash spinner still waits on the stored-session read):
+
+```tsx
+  const { isLoading } = useAuth();
+```
+
+- [ ] **Step 6: Offer sign-in from `ProfileScreen`**
+
+In `src/screens/profile/ProfileScreen.tsx`, take `isGuest` and the tab navigation:
+
+```tsx
+import { useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { AppTabParamList } from '@/navigation/types';
+```
+
+```tsx
+  const { user, logout, isGuest } = useAuth();
+  const navigation = useNavigation<BottomTabNavigationProp<AppTabParamList>>();
+```
+
+Replace the logout `Pressable` at the bottom of the Configuración card with a branch on `isGuest`:
+
+```tsx
+          {isGuest ? (
+            <Pressable
+              className="flex-row items-center px-4"
+              style={{ height: 48 }}
+              onPress={() => navigation.navigate('Auth')}
+            >
+              <View className="flex-row items-center">
+                <Icon name="login" size={22} color="#012d1d" />
+                <Text
+                  className="font-inter text-lg ml-4"
+                  style={{ color: '#012d1d', fontWeight: '600' }}
+                >
+                  Iniciar Sesion
+                </Text>
+              </View>
+            </Pressable>
+          ) : (
+            <Pressable className="flex-row items-center px-4" style={{ height: 48 }} onPress={logout}>
+              <View className="flex-row items-center">
+                <Icon name="logout" size={22} color="#ba1a1a" />
+                <Text
+                  className="font-inter text-lg ml-4"
+                  style={{ color: '#ba1a1a', fontWeight: '600' }}
+                >
+                  Cerrar Sesion
+                </Text>
+              </View>
+            </Pressable>
+          )}
+```
+
+Add a line of guest-facing copy explaining what an account buys, directly above the Configuración card's closing `</View>`:
+
+```tsx
+      {isGuest ? (
+        <Text className="font-inter text-body-md text-on-surface-variant px-1 mt-2">
+          Tu cuenta solo sirve para sincronizar tus aportes cuando haya internet. Puedes escanear y
+          revisar tu historial sin iniciar sesion.
+        </Text>
+      ) : null}
+```
+
+- [ ] **Step 7: Return to the app after a successful login**
+
+`LoginScreen` and `RegisterScreen` previously relied on the root gate swapping the whole tree on success. Now that `AppTabsNavigator` is always mounted, a successful login inside the pushed `Auth` stack must pop back explicitly.
+
+In `src/screens/auth/LoginScreen.tsx`, extend `handleLogin`'s success branch:
+
+```tsx
+    if (!result.success && result.error) {
+      setServerError(result.error);
+    }
+```
+
+to:
+
+```tsx
+    if (result.success) {
+      navigation.getParent()?.navigate('Profile');
+      return;
+    }
+
+    if (result.error) {
+      setServerError(result.error);
+    }
+```
+
+Apply the same change to `RegisterScreen.tsx`'s submit handler success branch.
+
+- [ ] **Step 8: Run tests to verify they pass**
+
+Run: `npx jest src/navigation src/auth src/screens/auth src/screens/profile`
+Expected: all PASS, including `LoginScreen.test.tsx`. If `LoginScreen.test.tsx` asserted anything about post-login navigation via the old root swap, update that assertion to the `getParent()?.navigate('Profile')` behavior rather than reverting Step 7.
+
+- [ ] **Step 9: Typecheck and run the full test suite**
+
+Run: `npx tsc --noEmit`
+Expected: no errors (confirms the `Auth` route addition and the removed `isAuthenticated` destructure are consistent).
+
+Run: `npx jest`
+Expected: all PASS.
+
+- [ ] **Step 10: Manually verify the offline-first guarantee end to end**
+
+On a device or emulator with **airplane mode on** and no stored session:
+
+1. Launch the app — it must land on Home ("Hola, Agricultor"), not on Login.
+2. Run a scan and confirm a diagnosis is produced (on-device inference, no account, no network).
+3. Open History and confirm the scan is listed.
+4. Open Profile and confirm it offers "Iniciar Sesion", not "Cerrar Sesion".
+5. Turn airplane mode off, sign in, and confirm the queued scan's correction/contribution syncs on the next connectivity transition.
+
+- [ ] **Step 11: Commit**
+
+```bash
+git add src/auth/AuthContext.tsx src/auth/AuthContext.test.tsx src/navigation/RootNavigator.tsx src/navigation/RootNavigator.test.tsx src/navigation/types.ts src/screens/profile/ProfileScreen.tsx src/screens/auth/LoginScreen.tsx src/screens/auth/RegisterScreen.tsx
+git commit -m "feat(auth): make the account optional so the app opens without logging in"
 ```
