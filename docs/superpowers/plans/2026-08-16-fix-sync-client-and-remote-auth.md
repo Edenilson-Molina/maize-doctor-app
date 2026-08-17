@@ -1499,7 +1499,16 @@ git commit -m "fix(sync): send dataset contributions as multipart/form-data with
 **Interfaces:**
 - None (documentation only).
 
-**Context:** `model-ml.md` currently states the dataset totals **31,622 imágenes** (3,551 lab + 28,071 real) — a pre-expansion figure. `maize-doctor-classifier/CLAUDE.md` confirms the dataset grew to **33,438** images after an August 2026 expansion (up from 31,623 before). The per-class breakdown table in `model-ml.md` also predates that expansion and must be regenerated from the ML repo's real current data, not guessed — `make summary` in that repo is the existing, documented command for exactly this (`CLAUDE.md`: "conteo de imágenes por clase/entorno").
+**Context:** `model-ml.md` currently states the dataset totals **31,622 imágenes** (3,551 lab + 28,071 real). The per-class breakdown must be regenerated from the ML repo's real current data, not guessed — `make summary` in that repo is the existing, documented command for exactly this (`CLAUDE.md`: "conteo de imágenes por clase/entorno").
+
+**CORRECTED 2026-08-17 (during execution):** an earlier draft of this task claimed the target figure was **33,438**, citing `maize-doctor-classifier/CLAUDE.md`. That is the wrong number for this document. The two figures measure different things:
+
+- **33,438** = `outputs/splits/seed_42`, the *training splits*, which include augmented minority-class images.
+- **31,623** = `data/clean/`, the deduplicated source corpus — which is explicitly what `model-ml.md`'s table says it reports ("Conteos post-limpieza y deduplicación en `data/clean/`").
+
+Verified by running the summary directly: total **31,623** (3,551 lab + 28,072 real). The doc was off by only **1 image**, not ~1,800: the single stale cell was `fall_armyworm` (4,857 → 4,858), which also accounts for the total and the `real` subtotal. Every other per-class count in both tables already matched exactly.
+
+On Windows, `make summary` crashes with `UnicodeEncodeError` (cp1252 console) while *printing* an otherwise-correct report. Run it as `PYTHONIOENCODING=utf-8 ./venv/Scripts/python src/analysis/dataset_summary.py` instead.
 
 - [ ] **Step 1: Generate the current per-class/environment counts**
 

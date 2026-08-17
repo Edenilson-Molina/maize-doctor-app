@@ -63,7 +63,7 @@ El problema es que en zonas rurales el acceso a asistencia técnica es limitado,
 | **Mancha gris de la hoja (GLS)** | Gray Leaf Spot | *Cercospora zeae-maydis* | Lesiones rectangulares grises o marrones delimitadas por nervaduras | 513 | 606 | 1 119 |
 | **Necrosis letal del maíz (MLN)** | Lethal Necrosis | *MCMV + SCMV* | Moteado clorótico severo, necrosis y muerte progresiva de la planta | 0 | 6 415 | 6 415 |
 | **Hoja sana** | Healthy | - | Sin síntomas foliares de enfermedad | 0 | 8 744 | 8 744 |
-| **Gusano cogollero** | Fall Armyworm | *Spodoptera frugiperda* | Daño por masticación con excrementos en el cogollo y hojas | 0 | 4 857 | 4 857 |
+| **Gusano cogollero** | Fall Armyworm | *Spodoptera frugiperda* | Daño por masticación con excrementos en el cogollo y hojas | 0 | 4 858 | 4 858 |
 
 #### Deficiencias nutricionales
 
@@ -73,7 +73,7 @@ El problema es que en zonas rurales el acceso a asistencia técnica es limitado,
 | **Deficiencia de fósforo** | Phosphorus Deficiency | Bordes y puntas moradas/rojizas en hojas jóvenes | 0 | 612 (pocos datos) | 612 |
 | **Deficiencia de potasio** | Potassium Deficiency | Necrosis marginal en hojas más viejas | 0 | 266 (pocos datos) | 266 |
 
-> Conteos post-limpieza y deduplicación en `data/clean/` (junio 2026). Total consolidado: **31 622 imágenes** (3 551 lab + 28 071 campo real). Las marcas "(pocos datos)" señalan las clases con menor cantidad de imágenes disponibles. La clase `aphids_pest` (áfidos del maíz) fue evaluada pero descartada por escasez de datos (~77 imágenes); en su lugar se incorporó `lethal_necrosis`.
+> Conteos post-limpieza y deduplicación en `data/clean/` (agosto 2026). Total consolidado: **31 623 imágenes** (3 551 lab + 28 072 campo real). Las marcas "(pocos datos)" señalan las clases con menor cantidad de imágenes disponibles. La clase `aphids_pest` (áfidos del maíz) fue evaluada pero descartada por escasez de datos (~77 imágenes); en su lugar se incorporó `lethal_necrosis`.
 
 
 ### Metodología
