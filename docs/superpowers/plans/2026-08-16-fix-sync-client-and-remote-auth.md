@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript, React Native (Expo), Jest + `@testing-library/react-native`, `expo-secure-store`, WatermelonDB (unrelated to this plan except as the source of records being synced).
 
-**Spec:** `maize-doctor-api/docs/superpowers/specs/2026-08-16-maize-doctor-api-design.md` (the API's contract — `POST /auth/{register,login,refresh,logout}` return `{user, accessToken, refreshToken}` / `{accessToken, refreshToken}` with camelCase JSON; `POST /corrections` and `POST /dataset-contributions` require `Authorization: Bearer <accessToken>`; `POST /dataset-contributions` is `multipart/form-data` with fields `clientId`, `label`, `createdAt`, optional `note`, and a file field `image`). Companion plans (independent, not a dependency): `corn-leaf-desease-project/docs/superpowers/plans/2026-08-16-mobile-handoff-hardening.md`, `maize-doctor-api/docs/superpowers/plans/2026-08-16-taxonomy-validation-and-docs.md`.
+**Spec:** `maize-doctor-api/docs/superpowers/specs/2026-08-16-maize-doctor-api-design.md` (the API's contract — `POST /auth/{register,login,refresh,logout}` return `{user, accessToken, refreshToken}` / `{accessToken, refreshToken}` with camelCase JSON; `POST /corrections` and `POST /dataset-contributions` require `Authorization: Bearer <accessToken>`; `POST /dataset-contributions` is `multipart/form-data` with fields `clientId`, `label`, `createdAt`, optional `note`, and a file field `image`). Companion plans (independent, not a dependency): `maize-doctor-classifier/docs/superpowers/plans/2026-08-16-mobile-handoff-hardening.md`, `maize-doctor-api/docs/superpowers/plans/2026-08-16-taxonomy-validation-and-docs.md`.
 
 ## Global Constraints
 
@@ -1418,11 +1418,11 @@ git commit -m "fix(sync): send dataset contributions as multipart/form-data with
 **Interfaces:**
 - None (documentation only).
 
-**Context:** `model-ml.md` currently states the dataset totals **31,622 imágenes** (3,551 lab + 28,071 real) — a pre-expansion figure. `corn-leaf-desease-project/CLAUDE.md` confirms the dataset grew to **33,438** images after an August 2026 expansion (up from 31,623 before). The per-class breakdown table in `model-ml.md` also predates that expansion and must be regenerated from the ML repo's real current data, not guessed — `make summary` in that repo is the existing, documented command for exactly this (`CLAUDE.md`: "conteo de imágenes por clase/entorno").
+**Context:** `model-ml.md` currently states the dataset totals **31,622 imágenes** (3,551 lab + 28,071 real) — a pre-expansion figure. `maize-doctor-classifier/CLAUDE.md` confirms the dataset grew to **33,438** images after an August 2026 expansion (up from 31,623 before). The per-class breakdown table in `model-ml.md` also predates that expansion and must be regenerated from the ML repo's real current data, not guessed — `make summary` in that repo is the existing, documented command for exactly this (`CLAUDE.md`: "conteo de imágenes por clase/entorno").
 
 - [ ] **Step 1: Generate the current per-class/environment counts**
 
-In `corn-leaf-desease-project` (a sibling checkout, not this repo), run:
+In `maize-doctor-classifier` (a sibling checkout, not this repo), run:
 
 ```bash
 make summary

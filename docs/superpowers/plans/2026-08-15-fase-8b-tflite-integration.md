@@ -2,13 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace the placeholder `throw new Error('TFLiteInferenceEngine aún no implementado')` in `src/ml/index.ts` with a real, on-device TFLite inference engine that reproduces the corn-leaf-desease-project pipeline's predictions, matches its documented preprocessing contract exactly, and never mislabels a class due to an index/order mismatch.
+**Goal:** Replace the placeholder `throw new Error('TFLiteInferenceEngine aún no implementado')` in `src/ml/index.ts` with a real, on-device TFLite inference engine that reproduces the maize-doctor-classifier pipeline's predictions, matches its documented preprocessing contract exactly, and never mislabels a class due to an index/order mismatch.
 
-**Architecture:** A small preprocessing module (`src/ml/imageTensor.ts` for pure tensor math, `src/ml/exifOrientation.ts` for EXIF parsing, `src/ml/preprocessImage.ts` for I/O orchestration) turns a captured photo into the exact NCHW float32 tensor the model expects, byte-for-byte matching `docs/es/deployment/react-native.md` from the corn-leaf-desease-project repo. `TFLiteInferenceEngine` (`src/ml/TFLiteInferenceEngine.ts`) loads the bundled `.tflite` via `react-native-fast-tflite`, runs it, and maps the output index to a `DiagnosisClass` **by reading `assets/model/labels.json`** — never by assuming array order — because this plan found a live naming mismatch (and a latent ordering mismatch) between the app's own `DiagnosisClass` order and the model's real `class_to_idx` order.
+**Architecture:** A small preprocessing module (`src/ml/imageTensor.ts` for pure tensor math, `src/ml/exifOrientation.ts` for EXIF parsing, `src/ml/preprocessImage.ts` for I/O orchestration) turns a captured photo into the exact NCHW float32 tensor the model expects, byte-for-byte matching `docs/es/deployment/react-native.md` from the maize-doctor-classifier repo. `TFLiteInferenceEngine` (`src/ml/TFLiteInferenceEngine.ts`) loads the bundled `.tflite` via `react-native-fast-tflite`, runs it, and maps the output index to a `DiagnosisClass` **by reading `assets/model/labels.json`** — never by assuming array order — because this plan found a live naming mismatch (and a latent ordering mismatch) between the app's own `DiagnosisClass` order and the model's real `class_to_idx` order.
 
 **Tech Stack:** `react-native-fast-tflite` (Nitro-based TFLite runtime), `jpeg-js` (pure-JS JPEG decode, no native deps), `expo-image-manipulator` (EXIF-aware rotate + stretch-resize), `expo-file-system`'s `File` API.
 
-**Spec:** `docs/es/deployment/react-native.md` (corn-leaf-desease-project repo) — the model I/O contract this plan implements. `implementation-plan.md` Fase 8b section (acceptance criteria). Companion plan: `docs/superpowers/plans/2026-08-15-finish-fase-8a-mobile-export.md` in the corn-leaf-desease-project repo — **this plan depends on that one's Task 4 having already copied `assets/model/candidates/<model>/model_int8.tflite` (×3) and `assets/model/labels.json` into this repo.** Do not start Task 6 below until those files exist on disk.
+**Spec:** `docs/es/deployment/react-native.md` (maize-doctor-classifier repo) — the model I/O contract this plan implements. `implementation-plan.md` Fase 8b section (acceptance criteria). Companion plan: `docs/superpowers/plans/2026-08-15-finish-fase-8a-mobile-export.md` in the maize-doctor-classifier repo — **this plan depends on that one's Task 4 having already copied `assets/model/candidates/<model>/model_int8.tflite` (×3) and `assets/model/labels.json` into this repo.** Do not start Task 6 below until those files exist on disk.
 
 ## Global Constraints
 
@@ -37,7 +37,7 @@
 - Delete (from Git history going forward, see Step 3): `best.pth`
 
 **Interfaces:**
-- Produces: `DiagnosisClass` now includes the literal `'northern_corn_leaf_blight'` (matching `config/dataset.yaml`'s real class name in the corn-leaf-desease-project repo and `assets/model/labels.json`) instead of `'northern_leaf_blight'`. Every later task that resolves a model output index to a class name via `labels.json` depends on this literal matching exactly, or `DIAGNOSIS_MAP[label]` returns `undefined` for that class.
+- Produces: `DiagnosisClass` now includes the literal `'northern_corn_leaf_blight'` (matching `config/dataset.yaml`'s real class name in the maize-doctor-classifier repo and `assets/model/labels.json`) instead of `'northern_leaf_blight'`. Every later task that resolves a model output index to a class name via `labels.json` depends on this literal matching exactly, or `DIAGNOSIS_MAP[label]` returns `undefined` for that class.
 
 - [ ] **Step 1: Rename the literal everywhere it appears**
 
@@ -62,13 +62,13 @@ Expected: all existing tests pass (87+ tests per the last recorded count in `imp
 
 - [ ] **Step 3: Remove `best.pth` from the repository**
 
-`best.pth` (a 16 MB PyTorch training checkpoint) is currently committed at the repo root — `implementation-plan.md`'s own "Higiene de repositorio" note says this should never happen; the real source of truth is `outputs-remote/main/efficientnet_b0/20260811_211306/best.pth` in the corn-leaf-desease-project repo. It is not consumed by any app code (confirmed: no reference to `best.pth` anywhere in `src/`).
+`best.pth` (a 16 MB PyTorch training checkpoint) is currently committed at the repo root — `implementation-plan.md`'s own "Higiene de repositorio" note says this should never happen; the real source of truth is `outputs-remote/main/efficientnet_b0/20260811_211306/best.pth` in the maize-doctor-classifier repo. It is not consumed by any app code (confirmed: no reference to `best.pth` anywhere in `src/`).
 
 ```bash
 git rm best.pth
 ```
 
-Add to `.gitignore` (under a new `# ML checkpoints (never belong in this repo — see corn-leaf-desease-project)` comment):
+Add to `.gitignore` (under a new `# ML checkpoints (never belong in this repo — see maize-doctor-classifier)` comment):
 
 ```
 *.pth
@@ -574,7 +574,7 @@ git commit -m "feat(ml): add image preprocessing pipeline matching the training 
 - Test: `src/ml/TFLiteInferenceEngine.test.ts`
 
 **Interfaces:**
-- Consumes: `preprocessImage` (Task 5), `softmax` (Task 3), `InferenceEngine`/`InferenceResult` (already defined in `src/ml/InferenceEngine.ts`), `assets/model/labels.json` and `assets/model/candidates/<model>/model_int8.tflite` (produced by the companion corn-leaf-desease-project plan's Task 4 — **must exist on disk before this task starts**).
+- Consumes: `preprocessImage` (Task 5), `softmax` (Task 3), `InferenceEngine`/`InferenceResult` (already defined in `src/ml/InferenceEngine.ts`), `assets/model/labels.json` and `assets/model/candidates/<model>/model_int8.tflite` (produced by the companion maize-doctor-classifier plan's Task 4 — **must exist on disk before this task starts**).
 - Produces: `class TFLiteInferenceEngine implements InferenceEngine`. Consumed by `src/ml/index.ts`'s factory (Task 7).
 
 **Prerequisite check before Step 1:** confirm the companion plan's handoff landed:
@@ -583,7 +583,7 @@ git commit -m "feat(ml): add image preprocessing pipeline matching the training 
 ls assets/model/labels.json assets/model/candidates/efficientnet_b0/model_int8.tflite assets/model/candidates/efficientnet_lite0/model_int8.tflite assets/model/candidates/shufflenet_v2_x1_0/model_int8.tflite
 ```
 
-Expected: all 4 files exist. If not, stop and complete Task 4 of `2026-08-15-finish-fase-8a-mobile-export.md` in the corn-leaf-desease-project repo first.
+Expected: all 4 files exist. If not, stop and complete Task 4 of `2026-08-15-finish-fase-8a-mobile-export.md` in the maize-doctor-classifier repo first.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -907,7 +907,7 @@ Expected: a small table of (model, mean latency ms, size MB) for all 3 — this 
 
 - [ ] **Step 3: Verify output-order correctness against the server**
 
-Per `react-native.md`'s "Verificar que la app coincide con el servidor" section: pick one test-split image referenced in the corn-leaf-desease-project repo's `outputs-remote/main/<model>/*/export/eval_tflite_int8_predictions.csv` (produced by the companion plan's Task 3), copy that exact image onto the test device, run it through the app's gallery-picker flow, and confirm the app's predicted `label` and approximate `confidence` match the CSV row for that image. This is the cheapest possible end-to-end check that preprocessing (Tasks 3–5) and label mapping (Task 6) are both correct together, not just individually unit-tested.
+Per `react-native.md`'s "Verificar que la app coincide con el servidor" section: pick one test-split image referenced in the maize-doctor-classifier repo's `outputs-remote/main/<model>/*/export/eval_tflite_int8_predictions.csv` (produced by the companion plan's Task 3), copy that exact image onto the test device, run it through the app's gallery-picker flow, and confirm the app's predicted `label` and approximate `confidence` match the CSV row for that image. This is the cheapest possible end-to-end check that preprocessing (Tasks 3–5) and label mapping (Task 6) are both correct together, not just individually unit-tested.
 
 Expected: predicted class matches exactly; confidence within a few percentage points (small floating-point/JPEG-recompression differences between the desktop eval path and the on-device path are expected and fine — a completely different class or wildly different confidence means revisit preprocessing).
 

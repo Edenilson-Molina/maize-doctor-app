@@ -40,5 +40,5 @@ yarn-error.*
 /ios
 /android
 
-# ML checkpoints (never belong in this repo — see corn-leaf-desease-project)
+# ML checkpoints (never belong in this repo — see maize-doctor-classifier)
 *.pth
