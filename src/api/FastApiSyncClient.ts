@@ -1,14 +1,42 @@
 import type { SyncClient } from './SyncClient';
+import { remoteSession } from './RemoteSessionService';
 import type { Correction } from '@/data/models/Correction';
 import type { DatasetContribution } from '@/data/models/DatasetContribution';
 
+/**
+ * Sends a request with the stored access token, refreshing once on a 401.
+ *
+ * @param {(token: string|null) => Promise<Response>} request Builds and sends the request for a given token.
+ * @returns {Promise<Response>} Final response, after at most one refresh-and-retry.
+ */
+async function sendWithAuthRetry(
+  request: (token: string | null) => Promise<Response>
+): Promise<Response> {
+  const accessToken = await remoteSession.getAccessToken();
+  let response = await request(accessToken);
+
+  if (response.status === 401) {
+    const refreshedToken = await remoteSession.refreshAccessToken();
+    if (refreshedToken) {
+      response = await request(refreshedToken);
+    }
+  }
+
+  return response;
+}
+
 async function post(path: string, body: unknown): Promise<void> {
   const baseUrl = process.env.EXPO_PUBLIC_API_URL;
-  const response = await fetch(`${baseUrl}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+  const response = await sendWithAuthRetry((token) =>
+    fetch(`${baseUrl}${path}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(body),
+    })
+  );
 
   if (!response.ok) {
     throw new Error(`Sync request to ${path} failed with status ${response.status}`);
