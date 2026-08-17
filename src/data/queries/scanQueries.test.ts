@@ -1,6 +1,5 @@
 const mockWrite = jest.fn((callback: () => Promise<void>) => callback());
 const mockFind = jest.fn();
-const mockFetch = jest.fn();
 
 jest.mock('../database', () => ({
   database: {
@@ -8,15 +7,12 @@ jest.mock('../database', () => ({
     collections: {
       get: jest.fn(() => ({
         find: (id: string) => mockFind(id),
-        query: (...args: unknown[]) => ({
-          fetch: () => mockFetch(...args),
-        }),
       })),
     },
   },
 }));
 
-import { updateScanResult, getScanById, getUnsyncedScans, markScanSynced } from './scanQueries';
+import { updateScanResult, getScanById } from './scanQueries';
 import type { Scan } from '../models/Scan';
 
 describe('updateScanResult', () => {
@@ -58,38 +54,5 @@ describe('getScanById', () => {
 
     expect(mockFind).toHaveBeenCalledWith('scan-1');
     expect(result).toBe(fakeScan);
-  });
-});
-
-describe('getUnsyncedScans', () => {
-  beforeEach(() => {
-    mockFetch.mockClear();
-  });
-
-  it('queries scans filtered by synced = false', async () => {
-    const fakeScans = [{ id: 'scan-1' }, { id: 'scan-2' }] as Scan[];
-    mockFetch.mockResolvedValue(fakeScans);
-
-    const result = await getUnsyncedScans();
-
-    expect(result).toBe(fakeScans);
-  });
-});
-
-describe('markScanSynced', () => {
-  beforeEach(() => {
-    mockWrite.mockClear();
-  });
-
-  it('sets synced to true on the scan', async () => {
-    const fakeScan = {
-      update: jest.fn((updater: (scan: Scan) => void) => {
-        updater(fakeScan as unknown as Scan);
-      }),
-    } as unknown as Scan;
-
-    await markScanSynced(fakeScan);
-
-    expect(fakeScan.synced).toBe(true);
   });
 });

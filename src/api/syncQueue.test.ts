@@ -1,14 +1,10 @@
-const mockSyncScan = jest.fn();
 const mockSyncCorrection = jest.fn();
 const mockSyncContribution = jest.fn();
 const mockGetSyncClient = jest.fn(() => ({
-  syncScan: mockSyncScan,
   syncCorrection: mockSyncCorrection,
   syncContribution: mockSyncContribution,
 }));
 
-const mockGetUnsyncedScans = jest.fn();
-const mockMarkScanSynced = jest.fn();
 const mockGetUnsyncedCorrections = jest.fn();
 const mockMarkCorrectionSynced = jest.fn();
 const mockGetUnsyncedContributions = jest.fn();
@@ -17,11 +13,6 @@ const mockAddEventListener = jest.fn();
 
 jest.mock('./index', () => ({
   getSyncClient: () => mockGetSyncClient(),
-}));
-
-jest.mock('@/data/queries/scanQueries', () => ({
-  getUnsyncedScans: () => mockGetUnsyncedScans(),
-  markScanSynced: (scan: unknown) => mockMarkScanSynced(scan),
 }));
 
 jest.mock('@/data/queries/correctionQueries', () => ({
@@ -46,26 +37,20 @@ import { flushPendingSync, startSyncListener } from './syncQueue';
 describe('flushPendingSync', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockGetUnsyncedScans.mockResolvedValue([]);
     mockGetUnsyncedCorrections.mockResolvedValue([]);
     mockGetUnsyncedContributions.mockResolvedValue([]);
-    mockSyncScan.mockResolvedValue(undefined);
     mockSyncCorrection.mockResolvedValue(undefined);
     mockSyncContribution.mockResolvedValue(undefined);
   });
 
-  it('syncs and marks every unsynced record across the three tables', async () => {
-    const scan = { id: 'scan-1' };
+  it('syncs and marks every unsynced record across the tracked tables', async () => {
     const correction = { id: 'correction-1' };
     const contribution = { id: 'contribution-1' };
-    mockGetUnsyncedScans.mockResolvedValue([scan]);
     mockGetUnsyncedCorrections.mockResolvedValue([correction]);
     mockGetUnsyncedContributions.mockResolvedValue([contribution]);
 
     await flushPendingSync();
 
-    expect(mockSyncScan).toHaveBeenCalledWith(scan);
-    expect(mockMarkScanSynced).toHaveBeenCalledWith(scan);
     expect(mockSyncCorrection).toHaveBeenCalledWith(correction);
     expect(mockMarkCorrectionSynced).toHaveBeenCalledWith(correction);
     expect(mockSyncContribution).toHaveBeenCalledWith(contribution);
@@ -73,32 +58,31 @@ describe('flushPendingSync', () => {
   });
 
   it('does not mark a record as synced when the upload fails', async () => {
-    const scan = { id: 'scan-1' };
-    mockGetUnsyncedScans.mockResolvedValue([scan]);
-    mockSyncScan.mockRejectedValue(new Error('Network request failed'));
+    const correction = { id: 'correction-1' };
+    mockGetUnsyncedCorrections.mockResolvedValue([correction]);
+    mockSyncCorrection.mockRejectedValue(new Error('Network request failed'));
 
     await flushPendingSync();
 
-    expect(mockMarkScanSynced).not.toHaveBeenCalled();
+    expect(mockMarkCorrectionSynced).not.toHaveBeenCalled();
   });
 
   it('keeps processing remaining records after one fails', async () => {
-    const scanA = { id: 'scan-a' };
-    const scanB = { id: 'scan-b' };
-    mockGetUnsyncedScans.mockResolvedValue([scanA, scanB]);
-    mockSyncScan.mockRejectedValueOnce(new Error('boom')).mockResolvedValueOnce(undefined);
+    const correctionA = { id: 'correction-a' };
+    const correctionB = { id: 'correction-b' };
+    mockGetUnsyncedCorrections.mockResolvedValue([correctionA, correctionB]);
+    mockSyncCorrection.mockRejectedValueOnce(new Error('boom')).mockResolvedValueOnce(undefined);
 
     await flushPendingSync();
 
-    expect(mockMarkScanSynced).not.toHaveBeenCalledWith(scanA);
-    expect(mockMarkScanSynced).toHaveBeenCalledWith(scanB);
+    expect(mockMarkCorrectionSynced).not.toHaveBeenCalledWith(correctionA);
+    expect(mockMarkCorrectionSynced).toHaveBeenCalledWith(correctionB);
   });
 });
 
 describe('startSyncListener', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockGetUnsyncedScans.mockResolvedValue([]);
     mockGetUnsyncedCorrections.mockResolvedValue([]);
     mockGetUnsyncedContributions.mockResolvedValue([]);
   });
@@ -113,7 +97,7 @@ describe('startSyncListener', () => {
     startSyncListener();
     listener({ isConnected: true });
 
-    expect(mockGetUnsyncedScans).not.toHaveBeenCalled();
+    expect(mockGetUnsyncedCorrections).not.toHaveBeenCalled();
   });
 
   it('flushes only when connectivity transitions from disconnected to connected', () => {
@@ -125,13 +109,13 @@ describe('startSyncListener', () => {
 
     startSyncListener();
     listener({ isConnected: false });
-    expect(mockGetUnsyncedScans).not.toHaveBeenCalled();
+    expect(mockGetUnsyncedCorrections).not.toHaveBeenCalled();
 
     listener({ isConnected: true });
-    expect(mockGetUnsyncedScans).toHaveBeenCalledTimes(1);
+    expect(mockGetUnsyncedCorrections).toHaveBeenCalledTimes(1);
 
     listener({ isConnected: true });
-    expect(mockGetUnsyncedScans).toHaveBeenCalledTimes(1);
+    expect(mockGetUnsyncedCorrections).toHaveBeenCalledTimes(1);
   });
 
   it('returns the unsubscribe function from NetInfo', () => {

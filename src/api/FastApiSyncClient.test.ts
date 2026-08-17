@@ -1,5 +1,4 @@
 import { FastApiSyncClient } from './FastApiSyncClient';
-import type { Scan } from '@/data/models/Scan';
 import type { Correction } from '@/data/models/Correction';
 import type { DatasetContribution } from '@/data/models/DatasetContribution';
 
@@ -15,44 +14,6 @@ describe('FastApiSyncClient', () => {
 
   afterEach(() => {
     process.env.EXPO_PUBLIC_API_URL = originalApiUrl;
-  });
-
-  it('posts a scan to /scans with the expected shape', async () => {
-    const client = new FastApiSyncClient();
-    const scan = {
-      id: 'scan-1',
-      imageUri: 'file:///document/scans/scan_1.jpg',
-      label: 'common_rust',
-      confidence: 0.82,
-      distribution: { common_rust: 0.82, healthy: 0.18 },
-      lat: null,
-      lon: null,
-      temperature: 24,
-      humidity: 65,
-      createdAt: new Date('2026-08-12T10:00:00.000Z'),
-    } as unknown as Scan;
-
-    await client.syncScan(scan);
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.doctormaiz.test/scans',
-      expect.objectContaining({
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          clientId: 'scan-1',
-          imageUri: scan.imageUri,
-          label: 'common_rust',
-          confidence: 0.82,
-          distribution: { common_rust: 0.82, healthy: 0.18 },
-          lat: null,
-          lon: null,
-          temperature: 24,
-          humidity: 65,
-          createdAt: '2026-08-12T10:00:00.000Z',
-        }),
-      })
-    );
   });
 
   it('posts a correction to /corrections with the expected shape', async () => {
@@ -96,9 +57,9 @@ describe('FastApiSyncClient', () => {
     fetchMock.mockResolvedValue({ ok: false, status: 500 });
     const client = new FastApiSyncClient();
 
-    await expect(client.syncScan({ id: 'scan-1', createdAt: new Date() } as Scan)).rejects.toThrow(
-      'Sync request to /scans failed with status 500'
-    );
+    await expect(
+      client.syncCorrection({ id: 'correction-1', createdAt: new Date() } as Correction)
+    ).rejects.toThrow('Sync request to /corrections failed with status 500');
   });
 
   it('propagates a network error so the sync queue can skip and retry later', async () => {
@@ -106,7 +67,7 @@ describe('FastApiSyncClient', () => {
     const client = new FastApiSyncClient();
 
     await expect(
-      client.syncScan({ id: 'scan-1', createdAt: new Date() } as Scan)
+      client.syncCorrection({ id: 'correction-1', createdAt: new Date() } as Correction)
     ).rejects.toThrow('Network request failed');
   });
 });

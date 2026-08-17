@@ -1,6 +1,5 @@
 import NetInfo from '@react-native-community/netinfo';
 import { getSyncClient } from './index';
-import { getUnsyncedScans, markScanSynced } from '@/data/queries/scanQueries';
 import { getUnsyncedCorrections, markCorrectionSynced } from '@/data/queries/correctionQueries';
 import {
   getUnsyncedContributions,
@@ -10,16 +9,6 @@ import { logger } from '@/lib/logger';
 
 export async function flushPendingSync(): Promise<void> {
   const syncClient = getSyncClient();
-
-  const scans = await getUnsyncedScans();
-  for (const scan of scans) {
-    try {
-      await syncClient.syncScan(scan);
-      await markScanSynced(scan);
-    } catch (error) {
-      logger.warn(`No se pudo sincronizar el escaneo ${scan.id}`, error);
-    }
-  }
 
   const corrections = await getUnsyncedCorrections();
   for (const correction of corrections) {

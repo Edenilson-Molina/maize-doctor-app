@@ -1,5 +1,4 @@
 import type { SyncClient } from './SyncClient';
-import type { Scan } from '@/data/models/Scan';
 import type { Correction } from '@/data/models/Correction';
 import type { DatasetContribution } from '@/data/models/DatasetContribution';
 
@@ -17,21 +16,6 @@ async function post(path: string, body: unknown): Promise<void> {
 }
 
 export class FastApiSyncClient implements SyncClient {
-  async syncScan(scan: Scan): Promise<void> {
-    await post('/scans', {
-      clientId: scan.id,
-      imageUri: scan.imageUri,
-      label: scan.label,
-      confidence: scan.confidence,
-      distribution: scan.distribution,
-      lat: scan.lat,
-      lon: scan.lon,
-      temperature: scan.temperature,
-      humidity: scan.humidity,
-      createdAt: scan.createdAt.toISOString(),
-    });
-  }
-
   async syncCorrection(correction: Correction): Promise<void> {
     await post('/corrections', {
       clientId: correction.id,

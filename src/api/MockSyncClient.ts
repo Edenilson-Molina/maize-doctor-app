@@ -1,5 +1,4 @@
 import type { SyncClient } from './SyncClient';
-import type { Scan } from '@/data/models/Scan';
 import type { Correction } from '@/data/models/Correction';
 import type { DatasetContribution } from '@/data/models/DatasetContribution';
 
@@ -12,10 +11,6 @@ function simulateLatency(): Promise<void> {
 }
 
 export class MockSyncClient implements SyncClient {
-  async syncScan(_scan: Scan): Promise<void> {
-    await simulateLatency();
-  }
-
   async syncCorrection(_correction: Correction): Promise<void> {
     await simulateLatency();
   }
