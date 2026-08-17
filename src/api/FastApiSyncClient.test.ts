@@ -12,6 +12,13 @@ jest.mock('./RemoteSessionService', () => ({
   },
 }));
 
+class FakeFormData {
+  parts: Array<[string, unknown]> = [];
+  append(key: string, value: unknown) {
+    this.parts.push([key, value]);
+  }
+}
+
 describe('FastApiSyncClient', () => {
   const originalApiUrl = process.env.EXPO_PUBLIC_API_URL;
   let fetchMock: jest.Mock;
@@ -22,6 +29,7 @@ describe('FastApiSyncClient', () => {
     global.fetch = fetchMock as unknown as typeof fetch;
     mockGetAccessToken.mockReset().mockResolvedValue(null);
     mockRefreshAccessToken.mockReset().mockResolvedValue(null);
+    global.FormData = FakeFormData as unknown as typeof FormData;
   });
 
   afterEach(() => {
@@ -47,7 +55,7 @@ describe('FastApiSyncClient', () => {
     );
   });
 
-  it('posts a contribution to /dataset-contributions with the expected shape', async () => {
+  it('posts a contribution as multipart/form-data with the image attached', async () => {
     const client = new FastApiSyncClient();
     const contribution = {
       id: 'contribution-1',
@@ -59,9 +67,50 @@ describe('FastApiSyncClient', () => {
 
     await client.syncContribution(contribution);
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.doctormaiz.test/dataset-contributions',
-      expect.objectContaining({ method: 'POST' })
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, options] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://api.doctormaiz.test/dataset-contributions');
+    expect(options.method).toBe('POST');
+    const body = options.body as FakeFormData;
+    expect(body.parts).toContainEqual(['clientId', 'contribution-1']);
+    expect(body.parts).toContainEqual(['label', 'healthy']);
+    expect(body.parts).toContainEqual(['createdAt', '2026-08-12T10:10:00.000Z']);
+    expect(body.parts).toContainEqual([
+      'image',
+      { uri: contribution.imageUri, name: 'contribution_1.jpg', type: 'image/jpeg' },
+    ]);
+  });
+
+  it('includes note in the multipart body when the contribution has one', async () => {
+    const client = new FastApiSyncClient();
+    const contribution = {
+      id: 'contribution-2',
+      imageUri: 'file:///document/contributions/leaf.jpg',
+      label: 'gray_leaf_spot',
+      note: 'Se ve seca',
+      createdAt: new Date('2026-08-12T10:10:00.000Z'),
+    } as unknown as DatasetContribution;
+
+    await client.syncContribution(contribution);
+
+    const [, options] = fetchMock.mock.calls[0];
+    const body = options.body as FakeFormData;
+    expect(body.parts).toContainEqual(['note', 'Se ve seca']);
+  });
+
+  it('throws when the contribution upload responds with a non-2xx status', async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 413 });
+    const client = new FastApiSyncClient();
+    const contribution = {
+      id: 'contribution-3',
+      imageUri: 'file:///document/contributions/leaf.jpg',
+      label: 'healthy',
+      note: null,
+      createdAt: new Date('2026-08-12T10:10:00.000Z'),
+    } as unknown as DatasetContribution;
+
+    await expect(client.syncContribution(contribution)).rejects.toThrow(
+      'Sync request to /dataset-contributions failed with status 413'
     );
   });
 
