@@ -34,4 +34,5 @@ export type AppTabParamList = {
   Scan: undefined;
   History: undefined;
   Profile: undefined;
+  Auth: undefined;
 };

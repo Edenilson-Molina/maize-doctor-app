@@ -112,12 +112,17 @@ function AppTabsNavigator() {
         options={{ headerShown: false }}
       />
       <AppTabs.Screen name="Profile" component={ProfileScreen} />
+      <AppTabs.Screen
+        name="Auth"
+        component={AuthNavigator}
+        options={{ tabBarButton: () => null, headerShown: false }}
+      />
     </AppTabs.Navigator>
   );
 }
 
 export function RootNavigator() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isLoading } = useAuth();
 
   if (isLoading) {
     return (
@@ -129,7 +134,7 @@ export function RootNavigator() {
 
   return (
     <NavigationContainer>
-      {isAuthenticated ? <AppTabsNavigator /> : <AuthNavigator />}
+      <AppTabsNavigator />
     </NavigationContainer>
   );
 }

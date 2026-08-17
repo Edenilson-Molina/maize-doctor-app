@@ -1,14 +1,18 @@
 import { useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useAuth } from '@/auth/AuthContext';
 import { Icon } from '@/components/Icon';
 import { getImpactStats } from '@/data/queries/impactQueries';
 import { computeRankProgress, type RankProgress } from '@/lib/rank';
+import type { AppTabParamList } from '@/navigation/types';
 
 const INITIAL_RANK_PROGRESS: RankProgress = computeRankProgress(0);
 
 export function ProfileScreen() {
-  const { user, logout } = useAuth();
+  const { user, logout, isGuest } = useAuth();
+  const navigation = useNavigation<BottomTabNavigationProp<AppTabParamList>>();
   const userName = user?.name ?? 'Agricultor';
   const [totalScans, setTotalScans] = useState(0);
   const [rank, setRank] = useState<RankProgress>(INITIAL_RANK_PROGRESS);
@@ -136,18 +140,46 @@ export function ProfileScreen() {
           <Divider />
           <SettingsItem icon="face-agent" label="Soporte Técnico" trailingIcon="open-in-new" />
           <Divider />
-          <Pressable className="flex-row items-center px-4" style={{ height: 48 }} onPress={logout}>
-            <View className="flex-row items-center">
-              <Icon name="logout" size={22} color="#ba1a1a" />
-              <Text
-                className="font-inter text-lg ml-4"
-                style={{ color: '#ba1a1a', fontWeight: '600' }}
-              >
-                Cerrar Sesión
-              </Text>
-            </View>
-          </Pressable>
+          {isGuest ? (
+            <Pressable
+              className="flex-row items-center px-4"
+              style={{ height: 48 }}
+              onPress={() => navigation.navigate('Auth')}
+            >
+              <View className="flex-row items-center">
+                <Icon name="login" size={22} color="#012d1d" />
+                <Text
+                  className="font-inter text-lg ml-4"
+                  style={{ color: '#012d1d', fontWeight: '600' }}
+                >
+                  Iniciar Sesión
+                </Text>
+              </View>
+            </Pressable>
+          ) : (
+            <Pressable
+              className="flex-row items-center px-4"
+              style={{ height: 48 }}
+              onPress={logout}
+            >
+              <View className="flex-row items-center">
+                <Icon name="logout" size={22} color="#ba1a1a" />
+                <Text
+                  className="font-inter text-lg ml-4"
+                  style={{ color: '#ba1a1a', fontWeight: '600' }}
+                >
+                  Cerrar Sesión
+                </Text>
+              </View>
+            </Pressable>
+          )}
         </View>
+        {isGuest ? (
+          <Text className="font-inter text-body-md text-on-surface-variant px-1 mt-2">
+            Tu cuenta solo sirve para sincronizar tus aportes cuando haya internet. Puedes escanear y
+            revisar tu historial sin iniciar sesión.
+          </Text>
+        ) : null}
       </View>
 
       {/* Version Info */}

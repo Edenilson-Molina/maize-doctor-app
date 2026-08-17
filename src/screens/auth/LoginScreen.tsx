@@ -29,7 +29,12 @@ export function LoginScreen({ navigation }: Props) {
     const result = await login(email, password);
     setIsSubmitting(false);
 
-    if (!result.success && result.error) {
+    if (result.success) {
+      navigation.getParent()?.navigate('Profile');
+      return;
+    }
+
+    if (result.error) {
       setServerError(result.error);
     }
   };

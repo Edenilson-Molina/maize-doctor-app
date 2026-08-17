@@ -16,6 +16,25 @@ jest.mock('@/data/seedDevData', () => ({
   seedDevData: jest.fn().mockResolvedValue(undefined),
 }));
 
+const mockGetStoredSession = jest.fn();
+
+jest.mock('@/auth/LocalAuthService', () => ({
+  LocalAuthService: jest.fn().mockImplementation(() => ({
+    login: jest.fn(),
+    register: jest.fn(),
+    logout: jest.fn(),
+    getStoredSession: () => mockGetStoredSession(),
+  })),
+}));
+
+jest.mock('@/api/RemoteSessionService', () => ({
+  remoteSession: {
+    login: jest.fn().mockResolvedValue(undefined),
+    register: jest.fn().mockResolvedValue(undefined),
+    logout: jest.fn().mockResolvedValue(undefined),
+  },
+}));
+
 import { render } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '@/auth/AuthContext';
@@ -37,9 +56,28 @@ function renderWithProviders() {
 }
 
 describe('RootNavigator', () => {
-  it('renders login screen when not authenticated', async () => {
-    const { getByText } = await renderWithProviders();
-    expect(getByText('Iniciar Sesion')).toBeTruthy();
-    expect(getByText('Entrar')).toBeTruthy();
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('lands on the app tabs without a session, not on the login screen', async () => {
+    mockGetStoredSession.mockResolvedValue(null);
+
+    const { findByText, queryByText } = await renderWithProviders();
+
+    expect(await findByText('Hola, Agricultor')).toBeTruthy();
+    expect(queryByText('Iniciar Sesion')).toBeNull();
+  });
+
+  it('lands on the app tabs when a stored session exists', async () => {
+    mockGetStoredSession.mockResolvedValue({
+      id: 'u1',
+      name: 'Farmer Uno',
+      email: 'farmer@example.com',
+    });
+
+    const { findByText } = await renderWithProviders();
+
+    expect(await findByText('Hola, Farmer')).toBeTruthy();
   });
 });

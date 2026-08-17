@@ -5,6 +5,7 @@ import { remoteSession } from '@/api/RemoteSessionService';
 
 interface AuthState {
   isAuthenticated: boolean;
+  isGuest: boolean;
   user: UserSession | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<AuthResult>;
@@ -59,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         isAuthenticated: user !== null,
+        isGuest: user === null,
         user,
         isLoading,
         login,

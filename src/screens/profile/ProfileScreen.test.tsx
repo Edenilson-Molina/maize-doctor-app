@@ -1,4 +1,5 @@
 import { render } from '@testing-library/react-native';
+import { NavigationContainer } from '@react-navigation/native';
 import { AuthProvider } from '@/auth/AuthContext';
 import { ProfileScreen } from './ProfileScreen';
 
@@ -16,9 +17,11 @@ jest.mock('@/data/queries/impactQueries', () => ({
 
 async function renderProfileScreen() {
   return render(
-    <AuthProvider>
-      <ProfileScreen />
-    </AuthProvider>,
+    <NavigationContainer>
+      <AuthProvider>
+        <ProfileScreen />
+      </AuthProvider>
+    </NavigationContainer>,
   );
 }
 
@@ -66,5 +69,22 @@ describe('ProfileScreen', () => {
     expect(
       await findByText('¡Alcanzaste el rango máximo! Gracias por tu aporte a la ciencia.'),
     ).toBeTruthy();
+  });
+
+  it('offers signing in and explains the account is optional while signed out', async () => {
+    mockGetImpactStats.mockResolvedValue({
+      totalScans: 0,
+      totalContributions: 0,
+      totalActivity: 0,
+    });
+    const { findByText, queryByText } = await renderProfileScreen();
+
+    expect(await findByText('Iniciar Sesión')).toBeTruthy();
+    expect(
+      await findByText(
+        'Tu cuenta solo sirve para sincronizar tus aportes cuando haya internet. Puedes escanear y revisar tu historial sin iniciar sesión.',
+      ),
+    ).toBeTruthy();
+    expect(queryByText('Cerrar Sesión')).toBeNull();
   });
 });

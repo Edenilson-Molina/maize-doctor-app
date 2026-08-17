@@ -35,11 +35,13 @@ let lastLoginError: unknown = null;
  * exercised via the public `render` API.
  */
 function AuthProbe() {
-  const { login, register, logout, isLoading } = useAuth();
+  const { login, register, logout, isLoading, isGuest, isAuthenticated } = useAuth();
 
   return (
     <>
       <Text>{isLoading ? 'loading' : 'ready'}</Text>
+      <Text>{`guest:${isGuest}`}</Text>
+      <Text>{`auth:${isAuthenticated}`}</Text>
       <Pressable
         accessibilityLabel="do-login"
         onPress={() => {
@@ -146,6 +148,28 @@ describe('AuthContext remote mirroring', () => {
     await waitFor(() =>
       expect(mockRemoteRegister).toHaveBeenCalledWith('Farmer', 'farmer@example.com', 'secret')
     );
+  });
+
+  it('reports guest state when there is no stored session', async () => {
+    mockGetStoredSession.mockResolvedValue(null);
+    const { findByText } = await renderProbe();
+    await findByText('ready');
+
+    expect(await findByText('guest:true')).toBeTruthy();
+    expect(await findByText('auth:false')).toBeTruthy();
+  });
+
+  it('reports authenticated state once a session exists', async () => {
+    mockGetStoredSession.mockResolvedValue({
+      id: 'u1',
+      name: 'Farmer',
+      email: 'farmer@example.com',
+    });
+    const { findByText } = await renderProbe();
+    await findByText('ready');
+
+    expect(await findByText('guest:false')).toBeTruthy();
+    expect(await findByText('auth:true')).toBeTruthy();
   });
 
   it('mirrors logout to the remote session', async () => {
