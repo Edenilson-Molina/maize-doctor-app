@@ -66,12 +66,12 @@ interface SeedScan {
 const SEED_SCANS: SeedScan[] = [];
 
 export async function seedDevData(): Promise<void> {
-  const scansCollection = database.collections.get<Scan>('scans');
+  const scansCollection = database!.collections.get<Scan>('scans');
   const count = await scansCollection.query().fetchCount();
 
   if (count > 0) return;
 
-  await database.write(async () => {
+  await database!.write(async () => {
     const batch = SEED_SCANS.map((seed) =>
       scansCollection.prepareCreate((scan) => {
         scan.imageUri = `dev://seed/${seed.label}_${seed.daysBack}`;
@@ -86,6 +86,6 @@ export async function seedDevData(): Promise<void> {
         (scan._raw as Record<string, unknown>).created_at = daysAgo(seed.daysBack);
       })
     );
-    await database.batch(...batch);
+    await database!.batch(...batch);
   });
 }

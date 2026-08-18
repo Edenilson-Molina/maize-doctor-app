@@ -3,7 +3,7 @@ import { database } from '../database';
 import { Scan } from '../models/Scan';
 import type { DiagnosisClass } from '@/content/diagnosis';
 
-const scansCollection = database.collections.get<Scan>('scans');
+const scansCollection = database!.collections.get<Scan>('scans');
 
 export function observeScans() {
   return scansCollection.query(Q.sortBy('created_at', Q.desc)).observe();
@@ -39,7 +39,7 @@ export async function createScan(data: {
   temperature?: number | null;
   humidity?: number | null;
 }): Promise<Scan> {
-  return database.write(async () => {
+  return database!.write(async () => {
     return scansCollection.create((scan) => {
       scan.imageUri = data.imageUri;
       scan.label = data.label ?? null;
@@ -62,7 +62,7 @@ export async function updateScanResult(
     distribution: Record<string, number>;
   },
 ): Promise<void> {
-  await database.write(async () => {
+  await database!.write(async () => {
     await scan.update((s) => {
       s.label = result.label;
       s.confidence = result.confidence;

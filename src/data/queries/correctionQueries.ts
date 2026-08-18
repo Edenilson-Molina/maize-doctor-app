@@ -3,7 +3,7 @@ import { database } from '../database';
 import { Correction } from '../models/Correction';
 import type { DiagnosisClass } from '@/content/diagnosis';
 
-const correctionsCollection = database.collections.get<Correction>('corrections');
+const correctionsCollection = database!.collections.get<Correction>('corrections');
 
 export function observeCorrectionsForScan(scanId: string) {
   return correctionsCollection
@@ -16,7 +16,7 @@ export async function getUnsyncedCorrections(): Promise<Correction[]> {
 }
 
 export async function markCorrectionSynced(correction: Correction): Promise<void> {
-  await database.write(async () => {
+  await database!.write(async () => {
     await correction.update((c) => {
       c.synced = true;
     });
@@ -28,7 +28,7 @@ export async function createCorrection(data: {
   observedLabel: DiagnosisClass;
   note?: string | null;
 }): Promise<Correction> {
-  return database.write(async () => {
+  return database!.write(async () => {
     return correctionsCollection.create((correction) => {
       correction.scanId = data.scanId;
       correction.observedLabel = data.observedLabel;
