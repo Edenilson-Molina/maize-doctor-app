@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import { View, Text, ScrollView, Pressable, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useAuth } from '@/auth/AuthContext';
 import { Icon } from '@/components/Icon';
 import { getImpactStats } from '@/data/queries/impactQueries';
+import { getPendingSyncCount } from '@/data/queries/pendingSyncQueries';
+import { trySyncNow } from '@/api/syncQueue';
+import { describeSyncOutcome } from '@/api/syncMessages';
 import { computeRankProgress, type RankProgress } from '@/lib/rank';
 import type { AppTabParamList } from '@/navigation/types';
 
@@ -16,13 +19,30 @@ export function ProfileScreen() {
   const userName = user?.name ?? 'Agricultor';
   const [totalScans, setTotalScans] = useState(0);
   const [rank, setRank] = useState<RankProgress>(INITIAL_RANK_PROGRESS);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     getImpactStats().then((stats) => {
       setTotalScans(stats.totalScans);
       setRank(computeRankProgress(stats.totalActivity));
     });
+    getPendingSyncCount().then(setPendingCount);
   }, []);
+
+  async function handleSyncNow() {
+    if (isSyncing) return;
+    setIsSyncing(true);
+    try {
+      const message = describeSyncOutcome(await trySyncNow());
+      Alert.alert(message.title, message.body);
+    } catch {
+      Alert.alert('Sincronización fallida', 'Tus aportes siguen guardados en este dispositivo.');
+    } finally {
+      setPendingCount(await getPendingSyncCount());
+      setIsSyncing(false);
+    }
+  }
 
   const nextRankCopy = rank.nextRank
     ? `Faltan ${rank.remainingToNextRank} escaneos o contribuciones para el rango '${rank.nextRank}'.`
@@ -125,6 +145,34 @@ export function ProfileScreen() {
           </Text>
         </View>
       </View>
+
+      {pendingCount > 0 ? (
+        <View className="mb-6">
+          <View className="bg-surface-container-low rounded-2xl border border-outline-variant p-4">
+            <View className="flex-row items-center">
+              <Icon name="cloud-upload-outline" size={22} color="#7d562d" />
+              <Text className="font-inter text-body-md text-on-surface ml-3 flex-1">
+                {pendingCount === 1
+                  ? '1 aporte sin sincronizar'
+                  : `${pendingCount} aportes sin sincronizar`}
+              </Text>
+            </View>
+            <Pressable
+              className="mt-3 rounded-xl items-center justify-center"
+              style={{ height: 44, backgroundColor: isSyncing ? '#86af99' : '#012d1d' }}
+              onPress={handleSyncNow}
+              disabled={isSyncing}
+              accessibilityRole="button"
+              accessibilityLabel="Sincronizar ahora"
+              accessibilityState={{ disabled: isSyncing }}
+            >
+              <Text className="font-inter text-body-md" style={{ color: '#ffffff' }}>
+                {isSyncing ? 'Sincronizando...' : 'Sincronizar ahora'}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
 
       {/* Configuración */}
       <View className="mb-6">

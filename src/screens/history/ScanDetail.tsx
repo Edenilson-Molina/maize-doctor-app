@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Pressable,
   ScrollView,
@@ -14,6 +15,8 @@ import { ChipPicker } from '@/components/ChipPicker';
 import { Icon } from '@/components/Icon';
 import { getScanById } from '@/data/queries/scanQueries';
 import { createCorrection, observeCorrectionsForScan } from '@/data/queries/correctionQueries';
+import { trySyncNow } from '@/api/syncQueue';
+import { describeSyncOutcome } from '@/api/syncMessages';
 import type { Scan } from '@/data/models/Scan';
 import type { Correction } from '@/data/models/Correction';
 import type { HistoryStackParamList } from '@/navigation/types';
@@ -55,6 +58,15 @@ export function ScanDetail({ route }: Props) {
     setIsSubmitting(true);
     try {
       await createCorrection({ scanId, observedLabel, note: note.trim() || null });
+
+      let message = describeSyncOutcome({ status: 'nothing-pending', synced: 0, failed: 0 });
+      try {
+        message = describeSyncOutcome(await trySyncNow());
+      } catch {
+        message = describeSyncOutcome({ status: 'partial', synced: 0, failed: 1 });
+      }
+
+      Alert.alert(message.title, message.body);
     } finally {
       setIsSubmitting(false);
     }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Pressable,
   ScrollView,
@@ -18,6 +19,8 @@ import {
   createDatasetContribution,
   getContributionCount,
 } from '@/data/queries/datasetContributionQueries';
+import { trySyncNow } from '@/api/syncQueue';
+import { describeSyncOutcome } from '@/api/syncMessages';
 import type { HomeStackParamList } from '@/navigation/types';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Contribute'>;
@@ -58,6 +61,15 @@ export function Contribute({ navigation }: Props) {
     try {
       const finalUri = await savePhotoFile(imageUri, 'contributions', 'contribution');
       await createDatasetContribution({ imageUri: finalUri, label, note: note.trim() || null });
+
+      let message = describeSyncOutcome({ status: 'nothing-pending', synced: 0, failed: 0 });
+      try {
+        message = describeSyncOutcome(await trySyncNow());
+      } catch {
+        message = describeSyncOutcome({ status: 'partial', synced: 0, failed: 1 });
+      }
+
+      Alert.alert(message.title, message.body);
       navigation.goBack();
     } finally {
       setIsSubmitting(false);

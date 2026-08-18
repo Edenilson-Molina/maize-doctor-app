@@ -10,6 +10,8 @@ const mockMarkCorrectionSynced = jest.fn();
 const mockGetUnsyncedContributions = jest.fn();
 const mockMarkContributionSynced = jest.fn();
 const mockAddEventListener = jest.fn();
+const mockFetch = jest.fn();
+const mockGetAccessToken = jest.fn();
 
 jest.mock('./index', () => ({
   getSyncClient: () => mockGetSyncClient(),
@@ -29,10 +31,17 @@ jest.mock('@react-native-community/netinfo', () => ({
   __esModule: true,
   default: {
     addEventListener: (listener: unknown) => mockAddEventListener(listener),
+    fetch: () => mockFetch(),
   },
 }));
 
-import { flushPendingSync, startSyncListener } from './syncQueue';
+jest.mock('./RemoteSessionService', () => ({
+  remoteSession: {
+    getAccessToken: () => mockGetAccessToken(),
+  },
+}));
+
+import { flushPendingSync, startSyncListener, trySyncNow } from './syncQueue';
 
 describe('flushPendingSync', () => {
   beforeEach(() => {
@@ -125,5 +134,74 @@ describe('startSyncListener', () => {
     const result = startSyncListener();
 
     expect(result).toBe(unsubscribe);
+  });
+});
+
+describe('trySyncNow', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetUnsyncedCorrections.mockResolvedValue([]);
+    mockGetUnsyncedContributions.mockResolvedValue([]);
+    mockSyncCorrection.mockResolvedValue(undefined);
+    mockSyncContribution.mockResolvedValue(undefined);
+    mockFetch.mockResolvedValue({ isConnected: true });
+    mockGetAccessToken.mockResolvedValue('token-123');
+    process.env.EXPO_PUBLIC_API_URL = 'https://api.doctormaiz.test';
+  });
+
+  it('reports offline without attempting any upload', async () => {
+    mockFetch.mockResolvedValue({ isConnected: false });
+    mockGetUnsyncedContributions.mockResolvedValue([{ id: 'contribution-1' }]);
+
+    const result = await trySyncNow();
+
+    expect(result.status).toBe('offline');
+    expect(mockSyncContribution).not.toHaveBeenCalled();
+  });
+
+  it('reports a missing session without attempting any upload', async () => {
+    mockGetAccessToken.mockResolvedValue(null);
+    mockGetUnsyncedContributions.mockResolvedValue([{ id: 'contribution-1' }]);
+
+    const result = await trySyncNow();
+
+    expect(result.status).toBe('unauthenticated');
+    expect(mockSyncContribution).not.toHaveBeenCalled();
+  });
+
+  it('reports no backend configured when EXPO_PUBLIC_API_URL is unset', async () => {
+    process.env.EXPO_PUBLIC_API_URL = '';
+    mockGetUnsyncedContributions.mockResolvedValue([{ id: 'contribution-1' }]);
+
+    const result = await trySyncNow();
+
+    expect(result.status).toBe('no-backend');
+    expect(mockSyncContribution).not.toHaveBeenCalled();
+  });
+
+  it('reports how many records synced on success', async () => {
+    mockGetUnsyncedContributions.mockResolvedValue([{ id: 'c-1' }, { id: 'c-2' }]);
+    mockGetUnsyncedCorrections.mockResolvedValue([{ id: 'k-1' }]);
+
+    const result = await trySyncNow();
+
+    expect(result).toEqual({ status: 'synced', synced: 3, failed: 0 });
+  });
+
+  it('reports nothing-pending when there are no unsynced records', async () => {
+    const result = await trySyncNow();
+
+    expect(result).toEqual({ status: 'nothing-pending', synced: 0, failed: 0 });
+  });
+
+  it('reports partial failure without throwing', async () => {
+    mockGetUnsyncedContributions.mockResolvedValue([{ id: 'c-1' }, { id: 'c-2' }]);
+    mockSyncContribution
+      .mockRejectedValueOnce(new Error('Network request failed'))
+      .mockResolvedValueOnce(undefined);
+
+    const result = await trySyncNow();
+
+    expect(result).toEqual({ status: 'partial', synced: 1, failed: 1 });
   });
 });

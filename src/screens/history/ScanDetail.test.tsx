@@ -1,9 +1,17 @@
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
+import { Alert } from 'react-native';
 import { ScanDetail } from './ScanDetail';
 
 const mockGetScanById = jest.fn();
 const mockCreateCorrection = jest.fn().mockResolvedValue(undefined);
 let correctionsSubscriber: ((corrections: unknown[]) => void) | null = null;
+
+const mockTrySyncNow = jest.fn();
+const mockAlert = jest.fn();
+
+jest.mock('@/api/syncQueue', () => ({
+  trySyncNow: () => mockTrySyncNow(),
+}));
 
 jest.mock('@/data/queries/scanQueries', () => ({
   getScanById: (id: string) => mockGetScanById(id),
@@ -41,6 +49,8 @@ function renderScanDetail() {
 describe('ScanDetail', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.spyOn(Alert, 'alert').mockImplementation((...args) => mockAlert(...args));
+    mockTrySyncNow.mockResolvedValue({ status: 'synced', synced: 1, failed: 0 });
     correctionsSubscriber = null;
     mockGetScanById.mockResolvedValue(fakeScan);
   });
@@ -112,5 +122,36 @@ describe('ScanDetail', () => {
 
     expect(await findByText('Revisado')).toBeTruthy();
     expect(await findByText('Revisado por un experto')).toBeTruthy();
+  });
+});
+
+describe('ScanDetail sync feedback', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.spyOn(Alert, 'alert').mockImplementation((...args) => mockAlert(...args));
+    mockTrySyncNow.mockResolvedValue({ status: 'synced', synced: 1, failed: 0 });
+    correctionsSubscriber = null;
+    mockGetScanById.mockResolvedValue(fakeScan);
+  });
+
+  it('triggers a sync attempt after saving the correction', async () => {
+    const { findByLabelText, getByLabelText } = await renderScanDetail();
+
+    await fireEvent.press(getByLabelText('Roya Comun'));
+    await fireEvent.press(await findByLabelText('Enviar Retroalimentación'));
+
+    await waitFor(() => expect(mockCreateCorrection).toHaveBeenCalled());
+    await waitFor(() => expect(mockTrySyncNow).toHaveBeenCalledTimes(1));
+  });
+
+  it('tells the user to sign in when there is no session', async () => {
+    mockTrySyncNow.mockResolvedValue({ status: 'unauthenticated', synced: 0, failed: 0 });
+    const { findByLabelText, getByLabelText } = await renderScanDetail();
+
+    await fireEvent.press(getByLabelText('Roya Comun'));
+    await fireEvent.press(await findByLabelText('Enviar Retroalimentación'));
+
+    await waitFor(() => expect(mockAlert).toHaveBeenCalled());
+    expect(mockAlert.mock.calls[0][1]).toContain('Inicia sesión');
   });
 });

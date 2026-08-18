@@ -1,4 +1,5 @@
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { Alert } from 'react-native';
 import { Contribute } from './Contribute';
 
 const mockLaunchCameraAsync = jest.fn();
@@ -8,6 +9,8 @@ const mockSavePhotoFile = jest
   .mockResolvedValue('file:///document/contributions/contribution_1.jpg');
 const mockCreateDatasetContribution = jest.fn().mockResolvedValue(undefined);
 const mockGetContributionCount = jest.fn().mockResolvedValue(0);
+const mockTrySyncNow = jest.fn();
+const mockAlert = jest.fn();
 
 jest.mock('expo-image-picker', () => ({
   launchCameraAsync: (...args: unknown[]) => mockLaunchCameraAsync(...args),
@@ -16,6 +19,10 @@ jest.mock('expo-image-picker', () => ({
 
 jest.mock('@/data/scanStorage', () => ({
   savePhotoFile: (...args: unknown[]) => mockSavePhotoFile(...args),
+}));
+
+jest.mock('@/api/syncQueue', () => ({
+  trySyncNow: () => mockTrySyncNow(),
 }));
 
 jest.mock('@/data/queries/datasetContributionQueries', () => ({
@@ -32,8 +39,10 @@ function renderContribute() {
 describe('Contribute', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.spyOn(Alert, 'alert').mockImplementation((...args) => mockAlert(...args));
     mockGetContributionCount.mockResolvedValue(0);
     mockLaunchImageLibraryAsync.mockResolvedValue({ canceled: true, assets: [] });
+    mockTrySyncNow.mockResolvedValue({ status: 'synced', synced: 1, failed: 0 });
   });
 
   it('disables the submit button until a photo and a label are chosen', async () => {
@@ -82,5 +91,59 @@ describe('Contribute', () => {
       }),
     );
     expect(await findByText('Impulsa la Agricultura del Futuro')).toBeTruthy();
+  });
+});
+
+describe('Contribute sync feedback', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.spyOn(Alert, 'alert').mockImplementation((...args) => mockAlert(...args));
+    mockGetContributionCount.mockResolvedValue(0);
+    mockSavePhotoFile.mockResolvedValue('file:///document/contributions/contribution_1.jpg');
+    mockCreateDatasetContribution.mockResolvedValue(undefined);
+    mockLaunchCameraAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'file:///cache/photo.jpg' }],
+    });
+    mockTrySyncNow.mockResolvedValue({ status: 'synced', synced: 1, failed: 0 });
+  });
+
+  async function fillAndSubmit() {
+    const utils = await renderContribute();
+    const { findByLabelText, getByLabelText } = utils;
+
+    await fireEvent.press(getByLabelText('Tomar foto'));
+    await waitFor(() => expect(mockLaunchCameraAsync).toHaveBeenCalled());
+    await fireEvent.press(getByLabelText('Roya Comun'));
+    await fireEvent.press(await findByLabelText('Contribuir al Dataset'));
+
+    return utils;
+  }
+
+  it('triggers a sync attempt after saving the contribution', async () => {
+    await fillAndSubmit();
+
+    await waitFor(() => expect(mockCreateDatasetContribution).toHaveBeenCalled());
+    await waitFor(() => expect(mockTrySyncNow).toHaveBeenCalledTimes(1));
+  });
+
+  it('tells the user to sign in when there is no session', async () => {
+    mockTrySyncNow.mockResolvedValue({ status: 'unauthenticated', synced: 0, failed: 0 });
+
+    await fillAndSubmit();
+
+    await waitFor(() => expect(mockAlert).toHaveBeenCalled());
+    const [title, body] = mockAlert.mock.calls[0];
+    expect(title).toBe('Guardado en el dispositivo');
+    expect(body).toContain('Inicia sesión');
+  });
+
+  it('still saves locally when the sync attempt throws', async () => {
+    mockTrySyncNow.mockRejectedValue(new Error('boom'));
+
+    await fillAndSubmit();
+
+    await waitFor(() => expect(mockCreateDatasetContribution).toHaveBeenCalled());
+    await waitFor(() => expect(mockAlert).toHaveBeenCalled());
   });
 });
