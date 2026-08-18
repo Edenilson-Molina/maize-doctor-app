@@ -29,9 +29,13 @@ export function BottomTabBar({ state, navigation }: BottomTabBarProps) {
       style={{ paddingBottom: insets.bottom }}
     >
       {state.routes.map((route, index) => {
+        const label = TAB_LABELS[route.name];
+        if (!label) {
+          return null;
+        }
+
         const isFocused = state.index === index;
         const icons = TAB_ICONS[route.name];
-        const label = TAB_LABELS[route.name] ?? route.name;
 
         return (
           <Pressable
