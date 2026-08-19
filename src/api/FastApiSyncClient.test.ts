@@ -13,9 +13,9 @@ jest.mock('./RemoteSessionService', () => ({
 }));
 
 class FakeFormData {
-  parts: Array<[string, unknown]> = [];
-  append(key: string, value: unknown) {
-    this.parts.push([key, value]);
+  parts: Array<[string, unknown, string?]> = [];
+  append(key: string, value: unknown, filename?: string) {
+    this.parts.push([key, value, filename]);
   }
 }
 
@@ -25,7 +25,11 @@ describe('FastApiSyncClient', () => {
 
   beforeEach(() => {
     process.env.EXPO_PUBLIC_API_URL = 'https://api.doctormaiz.test';
-    fetchMock = jest.fn().mockResolvedValue({ ok: true, status: 201 });
+    fetchMock = jest.fn().mockImplementation((url: string) =>
+      typeof url === 'string' && url.startsWith('file://')
+        ? Promise.resolve({ ok: true, blob: async () => ({ size: 1 }) })
+        : Promise.resolve({ ok: true, status: 201 })
+    );
     global.fetch = fetchMock as unknown as typeof fetch;
     mockGetAccessToken.mockReset().mockResolvedValue(null);
     mockRefreshAccessToken.mockReset().mockResolvedValue(null);
@@ -67,18 +71,21 @@ describe('FastApiSyncClient', () => {
 
     await client.syncContribution(contribution);
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, options] = fetchMock.mock.calls[0];
+    const uploadCall = fetchMock.mock.calls.find(
+      ([callUrl]) => callUrl === 'https://api.doctormaiz.test/dataset-contributions'
+    );
+    expect(uploadCall).toBeDefined();
+    const [url, options] = uploadCall!;
     expect(url).toBe('https://api.doctormaiz.test/dataset-contributions');
     expect(options.method).toBe('POST');
     const body = options.body as FakeFormData;
     expect(body.parts).toContainEqual(['clientId', 'contribution-1']);
     expect(body.parts).toContainEqual(['label', 'healthy']);
     expect(body.parts).toContainEqual(['createdAt', '2026-08-12T10:10:00.000Z']);
-    expect(body.parts).toContainEqual([
-      'image',
-      { uri: contribution.imageUri, name: 'contribution_1.jpg', type: 'image/jpeg' },
-    ]);
+    const imagePart = body.parts.find(([key]) => key === 'image');
+    expect(imagePart).toBeDefined();
+    expect(imagePart?.[2]).toBe('contribution_1.jpg');
+    expect(fetchMock).toHaveBeenCalledWith(contribution.imageUri);
   });
 
   it('includes note in the multipart body when the contribution has one', async () => {
@@ -93,13 +100,19 @@ describe('FastApiSyncClient', () => {
 
     await client.syncContribution(contribution);
 
-    const [, options] = fetchMock.mock.calls[0];
-    const body = options.body as FakeFormData;
+    const uploadCall = fetchMock.mock.calls.find(
+      ([callUrl]) => callUrl === 'https://api.doctormaiz.test/dataset-contributions'
+    );
+    const body = uploadCall![1].body as FakeFormData;
     expect(body.parts).toContainEqual(['note', 'Se ve seca']);
   });
 
   it('throws when the contribution upload responds with a non-2xx status', async () => {
-    fetchMock.mockResolvedValue({ ok: false, status: 413 });
+    fetchMock.mockImplementation((url: string) =>
+      typeof url === 'string' && url.startsWith('file://')
+        ? Promise.resolve({ ok: true, blob: async () => ({ size: 1 }) })
+        : Promise.resolve({ ok: false, status: 413 })
+    );
     const client = new FastApiSyncClient();
     const contribution = {
       id: 'contribution-3',

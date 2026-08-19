@@ -87,11 +87,9 @@ export class FastApiSyncClient implements SyncClient {
       formData.append('note', contribution.note);
     }
     const filename = contribution.imageUri.split('/').pop() ?? 'contribution.jpg';
-    formData.append('image', {
-      uri: contribution.imageUri,
-      name: filename,
-      type: 'image/jpeg',
-    } as unknown as Blob);
+    const imageResponse = await fetch(contribution.imageUri);
+    const imageBlob = await imageResponse.blob();
+    formData.append('image', imageBlob, filename);
 
     await postMultipart('/dataset-contributions', formData);
   }
