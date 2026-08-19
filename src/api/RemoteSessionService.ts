@@ -1,11 +1,18 @@
 import * as SecureStore from 'expo-secure-store';
 
+const USER_KEY = 'doctormaiz_remote_user';
 const ACCESS_TOKEN_KEY = 'doctormaiz_remote_access_token';
 const REFRESH_TOKEN_KEY = 'doctormaiz_remote_refresh_token';
 
 interface TokenPair {
   accessToken: string;
   refreshToken: string;
+}
+
+export interface RemoteUser {
+  id: string;
+  name: string;
+  email: string;
 }
 
 function apiUrl(path: string): string {
@@ -53,6 +60,9 @@ export class RemoteSessionService {
     }
     const body = await response.json();
     await storeTokens({ accessToken: body.accessToken, refreshToken: body.refreshToken });
+    if (body.user) {
+      await SecureStore.setItemAsync(USER_KEY, JSON.stringify(body.user));
+    }
   }
 
   /**
@@ -75,6 +85,9 @@ export class RemoteSessionService {
     }
     const body = await response.json();
     await storeTokens({ accessToken: body.accessToken, refreshToken: body.refreshToken });
+    if (body.user) {
+      await SecureStore.setItemAsync(USER_KEY, JSON.stringify(body.user));
+    }
   }
 
   /**
@@ -88,6 +101,7 @@ export class RemoteSessionService {
     const refreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
     await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
     await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
+    await SecureStore.deleteItemAsync(USER_KEY);
     if (!refreshToken) return;
     try {
       await fetch(apiUrl('/auth/logout'), {
@@ -98,6 +112,15 @@ export class RemoteSessionService {
     } catch {
       // Best-effort: local tokens are already cleared regardless of network state.
     }
+  }
+
+  /**
+   * @returns {Promise<RemoteUser|null>} Account returned by the last successful remote login.
+   */
+  async getCurrentUser(): Promise<RemoteUser | null> {
+    const raw = await SecureStore.getItemAsync(USER_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as RemoteUser;
   }
 
   /**

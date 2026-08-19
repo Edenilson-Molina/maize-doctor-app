@@ -146,12 +146,12 @@ describe('ScanDetail sync feedback', () => {
 
   it('tells the user to sign in when there is no session', async () => {
     mockTrySyncNow.mockResolvedValue({ status: 'unauthenticated', synced: 0, failed: 0 });
-    const { findByLabelText, getByLabelText } = await renderScanDetail();
+    const { findByLabelText, getByLabelText, findByText } = await renderScanDetail();
 
     await fireEvent.press(getByLabelText('Roya Comun'));
     await fireEvent.press(await findByLabelText('Enviar Retroalimentación'));
 
-    await waitFor(() => expect(mockAlert).toHaveBeenCalled());
-    expect(mockAlert.mock.calls[0][1]).toContain('Inicia sesión');
+    expect(await findByText('Guardado en el dispositivo')).toBeTruthy();
+    expect(await findByText(/Inicia sesión desde tu perfil/)).toBeTruthy();
   });
 });

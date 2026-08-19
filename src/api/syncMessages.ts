@@ -1,4 +1,5 @@
 import type { SyncOutcome } from './syncQueue';
+import type { DialogTone } from '@/components/AppDialog';
 
 interface SyncMessage {
   title: string;
@@ -50,4 +51,16 @@ export function describeSyncOutcome(outcome: SyncOutcome): SyncMessage {
         body: 'Tu aporte quedó registrado en este dispositivo.',
       };
   }
+}
+
+/**
+ * Maps a sync outcome to the dialog tone that matches it.
+ *
+ * @param {SyncOutcome} outcome Result returned by `trySyncNow`.
+ * @returns {DialogTone} Tone driving the dialog's icon and colour.
+ */
+export function toneForOutcome(outcome: SyncOutcome): DialogTone {
+  if (outcome.status === 'synced') return 'success';
+  if (outcome.status === 'partial' || outcome.status === 'unauthenticated') return 'warning';
+  return 'info';
 }

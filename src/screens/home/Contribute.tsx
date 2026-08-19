@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   Pressable,
   ScrollView,
@@ -12,6 +11,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { DIAGNOSIS_CLASSES, DIAGNOSIS_MAP, type DiagnosisClass } from '@/content/diagnosis';
+import { AppDialog, type DialogTone } from '@/components/AppDialog';
 import { ChipPicker } from '@/components/ChipPicker';
 import { Icon } from '@/components/Icon';
 import { savePhotoFile } from '@/data/scanStorage';
@@ -20,7 +20,7 @@ import {
   getContributionCount,
 } from '@/data/queries/datasetContributionQueries';
 import { trySyncNow } from '@/api/syncQueue';
-import { describeSyncOutcome } from '@/api/syncMessages';
+import { describeSyncOutcome, toneForOutcome } from '@/api/syncMessages';
 import type { HomeStackParamList } from '@/navigation/types';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Contribute'>;
@@ -55,6 +55,10 @@ export function Contribute({ navigation }: Props) {
     }
   }
 
+  const [dialog, setDialog] = useState<{ title: string; body: string; tone: DialogTone } | null>(
+    null
+  );
+
   async function handleSubmit() {
     if (!imageUri || !label || isSubmitting) return;
     setIsSubmitting(true);
@@ -62,15 +66,17 @@ export function Contribute({ navigation }: Props) {
       const finalUri = await savePhotoFile(imageUri, 'contributions', 'contribution');
       await createDatasetContribution({ imageUri: finalUri, label, note: note.trim() || null });
 
-      let message = describeSyncOutcome({ status: 'nothing-pending', synced: 0, failed: 0 });
+      let outcome = { status: 'nothing-pending', synced: 0, failed: 0 } as Awaited<
+        ReturnType<typeof trySyncNow>
+      >;
       try {
-        message = describeSyncOutcome(await trySyncNow());
+        outcome = await trySyncNow();
       } catch {
-        message = describeSyncOutcome({ status: 'partial', synced: 0, failed: 1 });
+        outcome = { status: 'partial', synced: 0, failed: 1 };
       }
 
-      Alert.alert(message.title, message.body);
-      navigation.goBack();
+      const message = describeSyncOutcome(outcome);
+      setDialog({ title: message.title, body: message.body, tone: toneForOutcome(outcome) });
     } finally {
       setIsSubmitting(false);
     }
@@ -191,6 +197,16 @@ export function Contribute({ navigation }: Props) {
       <Text className="text-xs text-center text-on-surface-variant font-inter mt-2">
         Tu contribución será validada por expertos agrónomos.
       </Text>
+      <AppDialog
+        visible={dialog !== null}
+        title={dialog?.title ?? ''}
+        body={dialog?.body ?? ''}
+        tone={dialog?.tone ?? 'info'}
+        onDismiss={() => {
+          setDialog(null);
+          navigation.goBack();
+        }}
+      />
     </ScrollView>
   );
 }

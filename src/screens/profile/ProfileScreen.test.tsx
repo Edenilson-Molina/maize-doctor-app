@@ -145,11 +145,50 @@ describe('ProfileScreen pending sync', () => {
   it('retries the sync and reports the result when tapped', async () => {
     mockGetPendingSyncCount.mockResolvedValue(2);
 
-    const { findByLabelText } = await renderProfileScreen();
+    const { findByLabelText, findByText } = await renderProfileScreen();
 
     await fireEvent.press(await findByLabelText('Sincronizar ahora'));
 
     await waitFor(() => expect(mockTrySyncNow).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(mockAlert).toHaveBeenCalled());
+    expect(await findByText('Guardado y sincronizado')).toBeTruthy();
+  });
+});
+
+describe('ProfileScreen inert settings', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetImpactStats.mockResolvedValue({
+      totalScans: 0,
+      totalContributions: 0,
+      totalActivity: 0,
+    });
+    mockGetPendingSyncCount.mockResolvedValue(0);
+  });
+
+  it('marks the not-yet-available settings as disabled', async () => {
+    const { findByLabelText } = await renderProfileScreen();
+
+    for (const label of [
+      'Preferencias de Notificaciones',
+      'Modo Offline',
+      'Soporte Técnico',
+      'Configuración de Cuenta',
+    ]) {
+      const item = await findByLabelText(label);
+      expect(item.props.accessibilityState?.disabled).toBe(true);
+    }
+  });
+
+  it('explains that those settings are not available yet', async () => {
+    const { findAllByText } = await renderProfileScreen();
+
+    expect((await findAllByText('Próximamente')).length).toBeGreaterThan(0);
+  });
+
+  it('keeps the working actions enabled', async () => {
+    const { findByLabelText } = await renderProfileScreen();
+
+    const signIn = await findByLabelText('Iniciar Sesión');
+    expect(signIn.props.accessibilityState?.disabled).toBeFalsy();
   });
 });

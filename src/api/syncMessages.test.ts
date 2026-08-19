@@ -1,4 +1,4 @@
-import { describeSyncOutcome } from './syncMessages';
+import { describeSyncOutcome, toneForOutcome } from './syncMessages';
 
 describe('describeSyncOutcome', () => {
   it('confirms the upload when everything synced', () => {
@@ -37,5 +37,12 @@ describe('describeSyncOutcome', () => {
       expect(message.title).toMatch(/Guardado/);
       expect(message.body.length).toBeGreaterThan(0);
     }
+  });
+
+  it('maps outcomes to the matching dialog tone', () => {
+    expect(toneForOutcome({ status: 'synced', synced: 1, failed: 0 })).toBe('success');
+    expect(toneForOutcome({ status: 'partial', synced: 1, failed: 1 })).toBe('warning');
+    expect(toneForOutcome({ status: 'unauthenticated', synced: 0, failed: 0 })).toBe('warning');
+    expect(toneForOutcome({ status: 'offline', synced: 0, failed: 0 })).toBe('info');
   });
 });

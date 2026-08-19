@@ -6,6 +6,7 @@ const mockLocalLogin = jest.fn();
 const mockLocalRegister = jest.fn();
 const mockLocalLogout = jest.fn();
 const mockGetStoredSession = jest.fn();
+const mockLocalAdopt = jest.fn();
 
 jest.mock('./LocalAuthService', () => ({
   LocalAuthService: jest.fn().mockImplementation(() => ({
@@ -13,18 +14,21 @@ jest.mock('./LocalAuthService', () => ({
     register: (...args: unknown[]) => mockLocalRegister(...args),
     logout: (...args: unknown[]) => mockLocalLogout(...args),
     getStoredSession: () => mockGetStoredSession(),
+    adoptRemoteAccount: (...args: unknown[]) => mockLocalAdopt(...args),
   })),
 }));
 
 const mockRemoteLogin = jest.fn();
 const mockRemoteRegister = jest.fn();
 const mockRemoteLogout = jest.fn();
+const mockRemoteGetUser = jest.fn();
 
 jest.mock('@/api/RemoteSessionService', () => ({
   remoteSession: {
     login: (...args: unknown[]) => mockRemoteLogin(...args),
     register: (...args: unknown[]) => mockRemoteRegister(...args),
     logout: (...args: unknown[]) => mockRemoteLogout(...args),
+    getCurrentUser: () => mockRemoteGetUser(),
   },
 }));
 
@@ -92,6 +96,8 @@ describe('AuthContext remote mirroring', () => {
     mockRemoteLogin.mockResolvedValue(undefined);
     mockRemoteRegister.mockResolvedValue(undefined);
     mockRemoteLogout.mockResolvedValue(undefined);
+    mockRemoteGetUser.mockResolvedValue(null);
+    mockLocalAdopt.mockResolvedValue(undefined);
   });
 
   it('mirrors a successful local login to the remote session', async () => {
@@ -185,5 +191,61 @@ describe('AuthContext remote mirroring', () => {
     fireEvent.press(getByLabelText('do-logout'));
 
     await waitFor(() => expect(mockRemoteLogout).toHaveBeenCalledTimes(1));
+  });
+});
+
+describe('AuthContext multi-device login', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetStoredSession.mockResolvedValue(null);
+    mockRemoteLogin.mockResolvedValue(undefined);
+    mockRemoteLogout.mockResolvedValue(undefined);
+    mockLocalAdopt.mockResolvedValue(undefined);
+  });
+
+  it('falls back to the server when the account does not exist on this device', async () => {
+    mockLocalLogin.mockResolvedValue({
+      success: false,
+      error: 'No existe una cuenta con este correo.',
+    });
+    mockRemoteGetUser.mockResolvedValue({
+      id: 'srv-1',
+      name: 'Farmer',
+      email: 'farmer@example.com',
+    });
+    const { getByLabelText, findByText } = await renderProbe();
+    await findByText('ready');
+
+    fireEvent.press(getByLabelText('do-login'));
+
+    await waitFor(() => expect(mockRemoteLogin).toHaveBeenCalledWith('farmer@example.com', 'secret'));
+    await waitFor(() => expect(mockLocalAdopt).toHaveBeenCalled());
+    await findByText('auth:true');
+  });
+
+  it('does not fall back when the local password was simply wrong', async () => {
+    mockLocalLogin.mockResolvedValue({ success: false, error: 'Contraseña incorrecta.' });
+    const { getByLabelText, findByText } = await renderProbe();
+    await findByText('ready');
+
+    fireEvent.press(getByLabelText('do-login-wrong'));
+
+    await waitFor(() => expect(mockLocalLogin).toHaveBeenCalled());
+    expect(mockRemoteLogin).not.toHaveBeenCalled();
+  });
+
+  it('keeps the local error when the server also rejects the account', async () => {
+    mockLocalLogin.mockResolvedValue({
+      success: false,
+      error: 'No existe una cuenta con este correo.',
+    });
+    mockRemoteLogin.mockRejectedValue(new Error('Remote login failed with status 401'));
+    const { getByLabelText, findByText } = await renderProbe();
+    await findByText('ready');
+
+    fireEvent.press(getByLabelText('do-login'));
+
+    await waitFor(() => expect(mockRemoteLogin).toHaveBeenCalled());
+    await findByText('auth:false');
   });
 });

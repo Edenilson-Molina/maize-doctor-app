@@ -15,4 +15,5 @@ export interface AuthService {
   register(name: string, email: string, password: string): Promise<AuthResult>;
   logout(): Promise<void>;
   getStoredSession(): Promise<UserSession | null>;
+  adoptRemoteAccount(user: UserSession, password: string): Promise<UserSession>;
 }

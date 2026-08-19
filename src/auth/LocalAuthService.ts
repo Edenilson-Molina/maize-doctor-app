@@ -1,4 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
+import * as Crypto from 'expo-crypto';
 import type { AuthService, AuthResult, UserSession } from './AuthService';
 
 const SESSION_KEY = 'doctormaiz_session';
@@ -9,9 +10,19 @@ interface StoredUser {
   name: string;
   email: string;
   passwordHash: string;
+  /** Absent on accounts created before the salted-hash migration. */
+  salt?: string;
 }
 
-function simpleHash(input: string): string {
+/**
+ * Pre-migration hash. Kept only to verify credentials of accounts created before
+ * salted hashing existed, so those users are not locked out; never used to store
+ * a new hash.
+ *
+ * @param {string} input Value to hash.
+ * @returns {string} 32-bit non-cryptographic digest.
+ */
+function legacyHash(input: string): string {
   let hash = 0;
   for (let i = 0; i < input.length; i++) {
     const char = input.charCodeAt(i);
@@ -19,6 +30,29 @@ function simpleHash(input: string): string {
     hash |= 0;
   }
   return hash.toString(36);
+}
+
+/**
+ * Generates a random per-user salt.
+ *
+ * @returns {Promise<string>} Hex-encoded 16-byte salt.
+ */
+async function generateSalt(): Promise<string> {
+  const bytes = await Crypto.getRandomBytesAsync(16);
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+/**
+ * Hashes a password with its salt using SHA-256.
+ *
+ * @param {string} password Plain-text password.
+ * @param {string} salt Per-user salt.
+ * @returns {Promise<string>} Hex-encoded digest.
+ */
+async function hashPassword(password: string, salt: string): Promise<string> {
+  return Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, `${salt}:${password}`);
 }
 
 function generateId(): string {
@@ -48,8 +82,19 @@ export class LocalAuthService implements AuthService {
       return { success: false, error: 'No existe una cuenta con este correo.' };
     }
 
-    if (found.passwordHash !== simpleHash(password)) {
-      return { success: false, error: 'Contraseña incorrecta.' };
+    if (found.salt) {
+      const expected = await hashPassword(password, found.salt);
+      if (found.passwordHash !== expected) {
+        return { success: false, error: 'Contraseña incorrecta.' };
+      }
+    } else {
+      if (found.passwordHash !== legacyHash(password)) {
+        return { success: false, error: 'Contraseña incorrecta.' };
+      }
+      const salt = await generateSalt();
+      found.salt = salt;
+      found.passwordHash = await hashPassword(password, salt);
+      await this.saveUsers(users);
     }
 
     const session: UserSession = { id: found.id, name: found.name, email: found.email };
@@ -65,11 +110,13 @@ export class LocalAuthService implements AuthService {
       return { success: false, error: 'Ya existe una cuenta con este correo.' };
     }
 
+    const salt = await generateSalt();
     const newUser: StoredUser = {
       id: generateId(),
       name: name.trim(),
       email: normalizedEmail,
-      passwordHash: simpleHash(password),
+      passwordHash: await hashPassword(password, salt),
+      salt,
     };
 
     users.push(newUser);
@@ -78,6 +125,43 @@ export class LocalAuthService implements AuthService {
     const session: UserSession = { id: newUser.id, name: newUser.name, email: newUser.email };
     await this.saveSession(session);
     return { success: true, user: session };
+  }
+
+  /**
+   * Creates (or refreshes) the local account for a user that authenticated remotely.
+   *
+   * Lets a user sign in on a device that has never seen their account, keeping the
+   * app usable offline afterwards with the same credentials.
+   *
+   * @param {UserSession} user Account as returned by the backend.
+   * @param {string} password Password the user just authenticated with.
+   * @returns {Promise<UserSession>} The stored local session.
+   */
+  async adoptRemoteAccount(user: UserSession, password: string): Promise<UserSession> {
+    const users = await this.getUsers();
+    const normalizedEmail = user.email.toLowerCase().trim();
+    const salt = await generateSalt();
+    const passwordHash = await hashPassword(password, salt);
+    const existing = users.find((u) => u.email === normalizedEmail);
+
+    if (existing) {
+      existing.name = user.name;
+      existing.salt = salt;
+      existing.passwordHash = passwordHash;
+    } else {
+      users.push({
+        id: user.id,
+        name: user.name,
+        email: normalizedEmail,
+        passwordHash,
+        salt,
+      });
+    }
+
+    await this.saveUsers(users);
+    const session: UserSession = { id: user.id, name: user.name, email: normalizedEmail };
+    await this.saveSession(session);
+    return session;
   }
 
   async logout(): Promise<void> {

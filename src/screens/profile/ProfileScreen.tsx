@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable, Alert } from 'react-native';
+import { View, Text, ScrollView, Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useAuth } from '@/auth/AuthContext';
+import { AppDialog, type DialogTone } from '@/components/AppDialog';
 import { Icon } from '@/components/Icon';
 import { getImpactStats } from '@/data/queries/impactQueries';
 import { getPendingSyncCount } from '@/data/queries/pendingSyncQueries';
 import { trySyncNow } from '@/api/syncQueue';
-import { describeSyncOutcome } from '@/api/syncMessages';
+import { describeSyncOutcome, toneForOutcome } from '@/api/syncMessages';
 import { computeRankProgress, type RankProgress } from '@/lib/rank';
 import type { AppTabParamList } from '@/navigation/types';
 
@@ -21,6 +22,9 @@ export function ProfileScreen() {
   const [rank, setRank] = useState<RankProgress>(INITIAL_RANK_PROGRESS);
   const [pendingCount, setPendingCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [dialog, setDialog] = useState<{ title: string; body: string; tone: DialogTone } | null>(
+    null
+  );
 
   useEffect(() => {
     getImpactStats().then((stats) => {
@@ -34,10 +38,15 @@ export function ProfileScreen() {
     if (isSyncing) return;
     setIsSyncing(true);
     try {
-      const message = describeSyncOutcome(await trySyncNow());
-      Alert.alert(message.title, message.body);
+      const outcome = await trySyncNow();
+      const message = describeSyncOutcome(outcome);
+      setDialog({ title: message.title, body: message.body, tone: toneForOutcome(outcome) });
     } catch {
-      Alert.alert('Sincronización fallida', 'Tus aportes siguen guardados en este dispositivo.');
+      setDialog({
+        title: 'Sincronización fallida',
+        body: 'Tus aportes siguen guardados en este dispositivo.',
+        tone: 'warning',
+      });
     } finally {
       setPendingCount(await getPendingSyncCount());
       setIsSyncing(false);
@@ -180,19 +189,26 @@ export function ProfileScreen() {
           Configuración
         </Text>
         <View className="bg-surface-container-low rounded-2xl border border-outline-variant overflow-hidden">
-          <SettingsItem icon="account-cog" label="Configuración de Cuenta" />
+          <SettingsItem icon="account-cog" label="Configuración de Cuenta" disabled />
           <Divider />
-          <SettingsItem icon="bell-outline" label="Preferencias de Notificaciones" />
+          <SettingsItem icon="bell-outline" label="Preferencias de Notificaciones" disabled />
           <Divider />
-          <SettingsItem icon="cloud-off-outline" label="Modo Offline" trailing="toggle" />
+          <SettingsItem icon="cloud-off-outline" label="Modo Offline" trailing="toggle" disabled />
           <Divider />
-          <SettingsItem icon="face-agent" label="Soporte Técnico" trailingIcon="open-in-new" />
+          <SettingsItem
+            icon="face-agent"
+            label="Soporte Técnico"
+            trailingIcon="open-in-new"
+            disabled
+          />
           <Divider />
           {isGuest ? (
             <Pressable
               className="flex-row items-center px-4"
               style={{ height: 48 }}
               onPress={() => navigation.navigate('Auth')}
+              accessibilityRole="button"
+              accessibilityLabel="Iniciar Sesión"
             >
               <View className="flex-row items-center">
                 <Icon name="login" size={22} color="#012d1d" />
@@ -209,6 +225,8 @@ export function ProfileScreen() {
               className="flex-row items-center px-4"
               style={{ height: 48 }}
               onPress={logout}
+              accessibilityRole="button"
+              accessibilityLabel="Cerrar Sesión"
             >
               <View className="flex-row items-center">
                 <Icon name="logout" size={22} color="#ba1a1a" />
@@ -237,31 +255,61 @@ export function ProfileScreen() {
           Agri-Precision Engine 1.0.0
         </Text>
       </View>
+      <AppDialog
+        visible={dialog !== null}
+        title={dialog?.title ?? ''}
+        body={dialog?.body ?? ''}
+        tone={dialog?.tone ?? 'info'}
+        onDismiss={() => setDialog(null)}
+      />
     </ScrollView>
   );
 }
 
+/**
+ * Row in the settings card.
+ *
+ * Options with no behaviour yet render visibly disabled and non-interactive, so the
+ * card never offers a control that silently does nothing when tapped.
+ */
 function SettingsItem({
   icon,
   label,
   trailing,
   trailingIcon,
+  disabled = false,
 }: {
   icon: string;
   label: string;
   trailing?: 'toggle';
   trailingIcon?: string;
+  disabled?: boolean;
 }) {
   return (
-    <Pressable className="flex-row items-center justify-between px-4" style={{ height: 48 }}>
+    <Pressable
+      className="flex-row items-center justify-between px-4"
+      style={{ height: 48, opacity: disabled ? 0.45 : 1 }}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+    >
       <View className="flex-row items-center flex-1">
         <Icon name={icon as never} size={22} color="#717973" />
         <Text className="font-inter text-lg text-on-surface ml-4">{label}</Text>
+        {disabled ? (
+          <Text className="font-jetbrains text-label-md text-on-surface-variant ml-2">
+            Próximamente
+          </Text>
+        ) : null}
       </View>
       {trailing === 'toggle' ? (
         <View
-          className="w-11 h-6 rounded-full items-end justify-center px-0.5"
-          style={{ backgroundColor: '#012d1d' }}
+          className="w-11 h-6 rounded-full justify-center px-0.5"
+          style={{
+            alignItems: disabled ? 'flex-start' : 'flex-end',
+            backgroundColor: disabled ? '#c1c8c2' : '#012d1d',
+          }}
         >
           <View className="w-5 h-5 rounded-full bg-white" />
         </View>

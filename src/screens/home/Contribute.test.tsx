@@ -130,12 +130,11 @@ describe('Contribute sync feedback', () => {
   it('tells the user to sign in when there is no session', async () => {
     mockTrySyncNow.mockResolvedValue({ status: 'unauthenticated', synced: 0, failed: 0 });
 
-    await fillAndSubmit();
+    const utils = await fillAndSubmit();
 
-    await waitFor(() => expect(mockAlert).toHaveBeenCalled());
-    const [title, body] = mockAlert.mock.calls[0];
-    expect(title).toBe('Guardado en el dispositivo');
-    expect(body).toContain('Inicia sesión');
+    const { findByText } = utils;
+    expect(await findByText('Guardado en el dispositivo')).toBeTruthy();
+    expect(await findByText(/Inicia sesión desde tu perfil/)).toBeTruthy();
   });
 
   it('still saves locally when the sync attempt throws', async () => {
@@ -144,6 +143,6 @@ describe('Contribute sync feedback', () => {
     await fillAndSubmit();
 
     await waitFor(() => expect(mockCreateDatasetContribution).toHaveBeenCalled());
-    await waitFor(() => expect(mockAlert).toHaveBeenCalled());
+    await waitFor(() => expect(mockTrySyncNow).toHaveBeenCalled());
   });
 });
