@@ -8,6 +8,7 @@ import { LeafOverlay } from './LeafOverlay';
 import { savePhotoFile } from '@/data/scanStorage';
 import { createScan, updateScanResult } from '@/data/queries/scanQueries';
 import { getInferenceEngine } from '@/ml';
+import { dumpMetrics, measure } from '@/lib/metrics';
 import { logger } from '@/lib/logger';
 import type { ScanStackParamList } from '@/navigation/types';
 
@@ -25,6 +26,28 @@ export function ScanScreen({ navigation }: Props) {
     setIsSaving(true);
     setScanError(false);
     try {
+      await measure('pipeline', () => runScanPipeline(imageUri));
+    } catch {
+      // runScanPipeline already surfaced the error; measure only re-throws it.
+    } finally {
+      // Emits the running summary after every scan so a device test run can be read
+      // straight off `adb logcat` without instrumenting anything else.
+      dumpMetrics();
+      setIsSaving(false);
+    }
+  }
+
+  /**
+   * Saves the photo, runs inference and stores the result.
+   *
+   * Split out of `persistScan` so the whole capture-to-stored-result path can be
+   * timed as one 'pipeline' measurement.
+   *
+   * @param {string} imageUri Source image to analyse.
+   * @returns {Promise<void>} Resolves once the scan is stored and navigation happened.
+   */
+  async function runScanPipeline(imageUri: string) {
+    {
       const finalUri = await savePhotoFile(imageUri);
       const scan = await createScan({ imageUri: finalUri, label: null });
       try {
@@ -46,9 +69,8 @@ export function ScanScreen({ navigation }: Props) {
           error,
         );
         setScanError(true);
+        throw error;
       }
-    } finally {
-      setIsSaving(false);
     }
   }
 

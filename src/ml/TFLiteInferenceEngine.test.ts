@@ -6,6 +6,7 @@ import { preprocessImage } from './preprocessImage';
 import { TFLiteInferenceEngine } from './TFLiteInferenceEngine';
 import { DIAGNOSIS_CLASSES } from '@/content/diagnosis';
 import labelsData from '../../assets/model/labels.json';
+import { clearMetrics, getMetrics } from '@/lib/metrics';
 
 describe('TFLiteInferenceEngine', () => {
   beforeEach(() => {
@@ -13,6 +14,8 @@ describe('TFLiteInferenceEngine', () => {
     // Se resetea el cache estatico del modelo para que cada test dispare su propio loadTensorflowModel().
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (TFLiteInferenceEngine as any).modelPromise = null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (TFLiteInferenceEngine as any).hasRunOnce = false;
     (preprocessImage as jest.Mock).mockResolvedValue(new Float32Array(3 * 224 * 224));
   });
 
@@ -73,5 +76,42 @@ describe('TFLiteInferenceEngine', () => {
 
   it('labels.json contiene exactamente las mismas clases que DIAGNOSIS_CLASSES (orden puede diferir)', () => {
     expect([...labelsData.labels].sort()).toEqual([...DIAGNOSIS_CLASSES].sort());
+  });
+});
+
+describe('TFLiteInferenceEngine timing metrics', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    clearMetrics();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (TFLiteInferenceEngine as any).modelPromise = null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (TFLiteInferenceEngine as any).hasRunOnce = false;
+    (preprocessImage as jest.Mock).mockResolvedValue(new Float32Array(3 * 224 * 224));
+    (loadTensorflowModel as jest.Mock).mockResolvedValue({
+      inputs: [{ dataType: 'float32', shape: [1, 3, 224, 224] }],
+      outputs: [{ dataType: 'float32', shape: [1, labelsData.labels.length] }],
+      runSync: jest.fn(() => [new Float32Array(labelsData.labels.length).buffer]),
+    });
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+  });
+
+  it('records preprocess and inference as separate stages', async () => {
+    const engine = new TFLiteInferenceEngine();
+    await engine.predict('file:///leaf.jpg');
+
+    const stages = getMetrics().map((m) => m.stage);
+    expect(stages).toContain('preprocess');
+    expect(stages).toContain('inference');
+  });
+
+  it('marks the first run of the session as cold', async () => {
+    const engine = new TFLiteInferenceEngine();
+    await engine.predict('file:///leaf.jpg');
+    await engine.predict('file:///leaf.jpg');
+
+    const inference = getMetrics().filter((m) => m.stage === 'inference');
+    expect(inference[0].cold).toBe(true);
+    expect(inference[1].cold).toBeFalsy();
   });
 });

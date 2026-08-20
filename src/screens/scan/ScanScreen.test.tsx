@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Text, View } from 'react-native';
 import { ScanScreen } from './ScanScreen';
 import type { ScanStackParamList } from '@/navigation/types';
+import { clearMetrics, getMetrics } from '@/lib/metrics';
 
 const mockRequestPermission = jest.fn();
 let mockPermission: { granted: boolean } | null = { granted: true };
@@ -133,5 +134,38 @@ describe('ScanScreen', () => {
 
     expect(await findByText('No se pudo analizar la foto. Intente de nuevo.')).toBeTruthy();
     expect(queryByText(/ScanResult:/)).toBeNull();
+  });
+});
+
+describe('ScanScreen pipeline metrics', () => {
+  beforeEach(() => {
+    clearMetrics();
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    mockPredict.mockResolvedValue({
+      label: 'common_rust',
+      confidence: 0.82,
+      distribution: { common_rust: 0.82, healthy: 0.18 },
+    });
+  });
+
+  it('records the full pipeline as a single measurement', async () => {
+    const { getByLabelText } = await renderScanScreen();
+
+    await fireEvent.press(getByLabelText('Tomar foto'));
+
+    await waitFor(() => expect(mockPredict).toHaveBeenCalled());
+    await waitFor(() => expect(getMetrics().some((m) => m.stage === 'pipeline')).toBe(true));
+  });
+
+  it('marks the pipeline measurement as failed when inference throws', async () => {
+    mockPredict.mockRejectedValue(new Error('boom'));
+    const { getByLabelText } = await renderScanScreen();
+
+    await fireEvent.press(getByLabelText('Tomar foto'));
+
+    await waitFor(() => {
+      const pipeline = getMetrics().find((m) => m.stage === 'pipeline');
+      expect(pipeline?.failed).toBe(true);
+    });
   });
 });

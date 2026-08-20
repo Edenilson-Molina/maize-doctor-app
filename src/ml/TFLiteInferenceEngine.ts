@@ -2,6 +2,7 @@ import { loadTensorflowModel, type TensorflowModel } from 'react-native-fast-tfl
 import type { DiagnosisClass } from '@/content/diagnosis';
 import type { InferenceEngine, InferenceResult } from './InferenceEngine';
 import { preprocessImage } from './preprocessImage';
+import { measure, recordMetric } from '@/lib/metrics';
 import { softmax } from './imageTensor';
 import labelsData from '../../assets/model/labels.json';
 
@@ -20,6 +21,9 @@ function resolveModelAsset(): number {
  * pueden divergir.
  */
 export class TFLiteInferenceEngine implements InferenceEngine {
+  /** First predict of the session pays one-off model loading; its timings are outliers. */
+  private static hasRunOnce = false;
+
   private static modelPromise: Promise<TensorflowModel> | null = null;
 
   private async getModel(): Promise<TensorflowModel> {
@@ -63,10 +67,24 @@ export class TFLiteInferenceEngine implements InferenceEngine {
   }
 
   async predict(imageUri: string): Promise<InferenceResult> {
+    const isCold = !TFLiteInferenceEngine.hasRunOnce;
     const model = await this.getModel();
-    const inputTensor = await preprocessImage(imageUri, INPUT_SIZE);
 
+    const inputTensor = await measure('preprocess', () => preprocessImage(imageUri, INPUT_SIZE), {
+      cold: isCold,
+    });
+
+    // runSync is synchronous, so this brackets the model call alone - no file IO,
+    // no tensor building - which is the number worth comparing across devices.
+    const inferenceStartedAt = Date.now();
     const [outputBuffer] = model.runSync([inputTensor.buffer as ArrayBuffer]);
+    recordMetric({
+      stage: 'inference',
+      durationMs: Date.now() - inferenceStartedAt,
+      cold: isCold,
+    });
+    TFLiteInferenceEngine.hasRunOnce = true;
+
     const probabilities = softmax(new Float32Array(outputBuffer));
 
     const distribution = {} as Record<DiagnosisClass, number>;
