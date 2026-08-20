@@ -22,6 +22,13 @@ const mockRemoteLogin = jest.fn();
 const mockRemoteRegister = jest.fn();
 const mockRemoteLogout = jest.fn();
 const mockRemoteGetUser = jest.fn();
+const mockFlagMismatch = jest.fn();
+const mockClearMismatch = jest.fn();
+
+jest.mock('@/api/remoteAuthStatus', () => ({
+  flagCredentialMismatch: () => mockFlagMismatch(),
+  clearCredentialMismatch: () => mockClearMismatch(),
+}));
 
 jest.mock('@/api/RemoteSessionService', () => ({
   remoteSession: {
@@ -98,6 +105,8 @@ describe('AuthContext remote mirroring', () => {
     mockRemoteLogout.mockResolvedValue(undefined);
     mockRemoteGetUser.mockResolvedValue(null);
     mockLocalAdopt.mockResolvedValue(undefined);
+    mockFlagMismatch.mockResolvedValue(undefined);
+    mockClearMismatch.mockResolvedValue(undefined);
   });
 
   it('mirrors a successful local login to the remote session', async () => {
@@ -247,5 +256,66 @@ describe('AuthContext multi-device login', () => {
 
     await waitFor(() => expect(mockRemoteLogin).toHaveBeenCalled());
     await findByText('auth:false');
+  });
+});
+
+describe('AuthContext credential divergence', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetStoredSession.mockResolvedValue(null);
+    mockRemoteGetUser.mockResolvedValue(null);
+    mockLocalAdopt.mockResolvedValue(undefined);
+    mockFlagMismatch.mockResolvedValue(undefined);
+    mockClearMismatch.mockResolvedValue(undefined);
+    mockLocalLogin.mockResolvedValue({
+      success: true,
+      user: { id: 'u1', name: 'Farmer', email: 'farmer@example.com' },
+    });
+  });
+
+  it('flags a mismatch when the local login works but the server rejects it', async () => {
+    mockRemoteLogin.mockRejectedValue(new Error('Remote login failed with status 401'));
+    const { getByLabelText, findByText } = await renderProbe();
+    await findByText('ready');
+
+    fireEvent.press(getByLabelText('do-login'));
+
+    await waitFor(() => expect(mockFlagMismatch).toHaveBeenCalledTimes(1));
+  });
+
+  it('does not flag a mismatch when the server is simply unreachable', async () => {
+    mockRemoteLogin.mockRejectedValue(new Error('Network request failed'));
+    const { getByLabelText, findByText } = await renderProbe();
+    await findByText('ready');
+
+    fireEvent.press(getByLabelText('do-login'));
+
+    await waitFor(() => expect(mockRemoteLogin).toHaveBeenCalled());
+    expect(mockFlagMismatch).not.toHaveBeenCalled();
+  });
+
+  it('clears the flag after a successful remote login', async () => {
+    mockRemoteLogin.mockResolvedValue(undefined);
+    const { getByLabelText, findByText } = await renderProbe();
+    await findByText('ready');
+
+    fireEvent.press(getByLabelText('do-login'));
+
+    await waitFor(() => expect(mockClearMismatch).toHaveBeenCalledTimes(1));
+  });
+
+  it('clears the flag on logout', async () => {
+    mockGetStoredSession.mockResolvedValue({
+      id: 'u1',
+      name: 'Farmer',
+      email: 'farmer@example.com',
+    });
+    mockLocalLogout.mockResolvedValue(undefined);
+    const { getByLabelText, findByText } = await renderProbe();
+    await findByText('ready');
+
+    fireEvent.press(getByLabelText('do-logout'));
+
+    await waitFor(() => expect(mockClearMismatch).toHaveBeenCalled());
   });
 });

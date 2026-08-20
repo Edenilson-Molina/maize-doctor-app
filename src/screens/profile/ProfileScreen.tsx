@@ -8,6 +8,7 @@ import { Icon } from '@/components/Icon';
 import { getImpactStats } from '@/data/queries/impactQueries';
 import { getPendingSyncCount } from '@/data/queries/pendingSyncQueries';
 import { trySyncNow } from '@/api/syncQueue';
+import { hasCredentialMismatch } from '@/api/remoteAuthStatus';
 import { describeSyncOutcome, toneForOutcome } from '@/api/syncMessages';
 import { computeRankProgress, type RankProgress } from '@/lib/rank';
 import type { AppTabParamList } from '@/navigation/types';
@@ -25,6 +26,7 @@ export function ProfileScreen() {
   const [dialog, setDialog] = useState<{ title: string; body: string; tone: DialogTone } | null>(
     null
   );
+  const [credentialMismatch, setCredentialMismatch] = useState(false);
 
   useEffect(() => {
     getImpactStats().then((stats) => {
@@ -32,6 +34,7 @@ export function ProfileScreen() {
       setRank(computeRankProgress(stats.totalActivity));
     });
     getPendingSyncCount().then(setPendingCount);
+    hasCredentialMismatch().then(setCredentialMismatch);
   }, []);
 
   async function handleSyncNow() {
@@ -154,6 +157,26 @@ export function ProfileScreen() {
           </Text>
         </View>
       </View>
+
+      {credentialMismatch ? (
+        <View className="mb-6">
+          <View
+            className="rounded-2xl border p-4"
+            style={{ backgroundColor: '#fdf3e7', borderColor: '#e0c9a6' }}
+          >
+            <View className="flex-row items-center mb-1">
+              <Icon name="alert-outline" size={22} color="#7d562d" />
+              <Text className="font-hanken-semibold text-body-lg ml-3" style={{ color: '#7d562d' }}>
+                Revisa tu sesión
+              </Text>
+            </View>
+            <Text className="font-inter text-body-md text-on-surface-variant">
+              Tu contraseña de este dispositivo no coincide con la del servidor. Cierra sesión y
+              vuelve a entrar para mantener la sincronización activa.
+            </Text>
+          </View>
+        </View>
+      ) : null}
 
       {pendingCount > 0 ? (
         <View className="mb-6">

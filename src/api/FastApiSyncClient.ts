@@ -66,6 +66,13 @@ async function postMultipart(path: string, formData: FormData): Promise<void> {
   }
 }
 
+/**
+ * Sync client for the FastAPI backend.
+ *
+ * `clientId` is the record's own local id, never the user's: the backend scopes
+ * every row by the user it derives from the JWT, so the local and remote account
+ * ids never need to agree (see `UserSession.id`).
+ */
 export class FastApiSyncClient implements SyncClient {
   async syncCorrection(correction: Correction): Promise<void> {
     await post('/corrections', {

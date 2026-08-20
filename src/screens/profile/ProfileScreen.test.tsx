@@ -13,6 +13,11 @@ jest.mock('expo-secure-store', () => ({
 const mockGetImpactStats = jest.fn();
 const mockGetPendingSyncCount = jest.fn();
 const mockTrySyncNow = jest.fn();
+const mockHasMismatch = jest.fn();
+
+jest.mock('@/api/remoteAuthStatus', () => ({
+  hasCredentialMismatch: () => mockHasMismatch(),
+}));
 const mockAlert = jest.fn();
 
 jest.mock('@/data/queries/pendingSyncQueries', () => ({
@@ -41,6 +46,7 @@ describe('ProfileScreen', () => {
   beforeEach(() => {
     mockGetImpactStats.mockReset();
     mockGetPendingSyncCount.mockResolvedValue(0);
+    mockHasMismatch.mockResolvedValue(false);
     mockTrySyncNow.mockResolvedValue({ status: 'synced', synced: 1, failed: 0 });
     jest.spyOn(Alert, 'alert').mockImplementation((...args) => mockAlert(...args));
   });
@@ -113,6 +119,7 @@ describe('ProfileScreen pending sync', () => {
       totalActivity: 0,
     });
     mockGetPendingSyncCount.mockResolvedValue(0);
+    mockHasMismatch.mockResolvedValue(false);
     mockTrySyncNow.mockResolvedValue({ status: 'synced', synced: 2, failed: 0 });
     jest.spyOn(Alert, 'alert').mockImplementation((...args) => mockAlert(...args));
   });
@@ -163,6 +170,7 @@ describe('ProfileScreen inert settings', () => {
       totalActivity: 0,
     });
     mockGetPendingSyncCount.mockResolvedValue(0);
+    mockHasMismatch.mockResolvedValue(false);
   });
 
   it('marks the not-yet-available settings as disabled', async () => {
@@ -190,5 +198,35 @@ describe('ProfileScreen inert settings', () => {
 
     const signIn = await findByLabelText('Iniciar Sesión');
     expect(signIn.props.accessibilityState?.disabled).toBeFalsy();
+  });
+});
+
+describe('ProfileScreen credential mismatch', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetImpactStats.mockResolvedValue({
+      totalScans: 0,
+      totalContributions: 0,
+      totalActivity: 0,
+    });
+    mockGetPendingSyncCount.mockResolvedValue(0);
+    mockHasMismatch.mockResolvedValue(false);
+  });
+
+  it('warns when the local and server passwords diverged', async () => {
+    mockHasMismatch.mockResolvedValue(true);
+
+    const { findByText } = await renderProfileScreen();
+
+    expect(await findByText(/no coincide/)).toBeTruthy();
+  });
+
+  it('stays quiet when the credentials match', async () => {
+    mockHasMismatch.mockResolvedValue(false);
+
+    const { queryByText, findByText } = await renderProfileScreen();
+
+    await findByText('Nuevo');
+    expect(queryByText(/no coincide/)).toBeNull();
   });
 });

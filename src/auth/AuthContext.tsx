@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 import type { AuthService, UserSession, AuthResult } from './AuthService';
 import { LocalAuthService } from './LocalAuthService';
 import { remoteSession } from '@/api/RemoteSessionService';
+import { clearCredentialMismatch, flagCredentialMismatch } from '@/api/remoteAuthStatus';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -30,6 +31,39 @@ function isMissingAccountError(result: AuthResult): boolean {
   return result.error === 'No existe una cuenta con este correo.';
 }
 
+/**
+ * Tells a rejected credential apart from an unreachable backend.
+ *
+ * Only a 401 means the local and remote passwords diverged; a network failure says
+ * nothing about the credentials and must not raise a false warning.
+ *
+ * @param {unknown} error Error thrown by the remote session call.
+ * @returns {boolean} True when the backend actively rejected the credentials.
+ */
+function isCredentialRejection(error: unknown): boolean {
+  return error instanceof Error && /status 401/.test(error.message);
+}
+
+/**
+ * Mirrors the login to the backend, recording whether the credentials still match.
+ *
+ * @param {string} email Account email.
+ * @param {string} password Password that just authenticated locally.
+ * @returns {void} Fire-and-forget: never blocks or fails the local login.
+ */
+function mirrorLogin(email: string, password: string): void {
+  remoteSession
+    .login(email, password)
+    .then(() => clearCredentialMismatch())
+    .catch((error: unknown) => {
+      if (isCredentialRejection(error)) {
+        return flagCredentialMismatch();
+      }
+      return undefined;
+    })
+    .catch(() => {});
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -45,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const result = await authService.login(email, password);
     if (result.success && result.user) {
       setUser(result.user);
-      remoteSession.login(email, password).catch(() => {});
+      mirrorLogin(email, password);
       return result;
     }
 
@@ -82,6 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async (): Promise<void> => {
     await authService.logout();
     remoteSession.logout().catch(() => {});
+    clearCredentialMismatch().catch(() => {});
     setUser(null);
   };
 
