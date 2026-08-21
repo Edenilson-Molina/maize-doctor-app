@@ -6,7 +6,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Icon } from '@/components/Icon';
 import { LeafOverlay } from './LeafOverlay';
 import { savePhotoFile } from '@/data/scanStorage';
-import { createScan, updateScanResult, updateScanImageUri } from '@/data/queries/scanQueries';
+import { createScan, updateScanResult } from '@/data/queries/scanQueries';
 import { getInferenceEngine } from '@/ml';
 import { dumpMetrics, measure } from '@/lib/metrics';
 import { logger } from '@/lib/logger';
@@ -53,11 +53,10 @@ export function ScanScreen({ navigation }: Props) {
     // yet the model never reads that file - it works from the camera's own capture. So
     // it runs in the background and the record is repointed once it lands; until then
     // the scan stays usable from the camera URI.
-    const storedImage = savePhotoFile(imageUri)
-      .then((storedUri) => updateScanImageUri(scan, storedUri))
-      .catch((error) => {
-        logger.error(`No se pudo guardar la imagen del escaneo ${scan.id}`, error);
-      });
+    const storedImage = savePhotoFile(imageUri).catch((error) => {
+      logger.error(`No se pudo guardar la imagen del escaneo ${scan.id}`, error);
+      return null;
+    });
 
     try {
       const result = await getInferenceEngine().predict(imageUri);
@@ -72,14 +71,15 @@ export function ScanScreen({ navigation }: Props) {
         createdAt: Date.now(),
       });
 
-      // Navigating first means this write no longer delays the result screen.
-      await updateScanResult(scan, result);
+      // Both fields land in one write. Updating them separately raced: two concurrent
+      // scan.update() calls on the same record let the second overwrite the first with
+      // its stale copy, which silently blanked the stored image in the history list.
+      const storedUri = await storedImage;
+      await updateScanResult(scan, result, storedUri ?? undefined);
     } catch (error) {
       logger.error(`No se pudo analizar el escaneo ${scan.id}`, error);
       setScanError(true);
       throw error;
-    } finally {
-      await storedImage;
     }
   }
 

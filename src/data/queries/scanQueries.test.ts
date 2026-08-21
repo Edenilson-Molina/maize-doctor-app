@@ -12,7 +12,7 @@ jest.mock('../database', () => ({
   },
 }));
 
-import { updateScanResult, updateScanImageUri, getScanById } from './scanQueries';
+import { updateScanResult, getScanById } from './scanQueries';
 import type { Scan } from '../models/Scan';
 
 describe('updateScanResult', () => {
@@ -57,21 +57,43 @@ describe('getScanById', () => {
   });
 });
 
-describe('updateScanImageUri', () => {
+describe('updateScanResult with a stored image', () => {
   beforeEach(() => {
     mockWrite.mockClear();
   });
 
-  it('points the scan at its final stored image', async () => {
+  it('writes the result and the stored image in one transaction', async () => {
     const fakeScan = {
       update: jest.fn((updater: (scan: Scan) => void) => {
         updater(fakeScan as unknown as Scan);
       }),
     } as unknown as Scan;
 
-    await updateScanImageUri(fakeScan, 'file:///document/scans/scan_final.jpg');
+    await updateScanResult(
+      fakeScan,
+      { label: 'common_rust', confidence: 0.9, distribution: { common_rust: 0.9 } },
+      'file:///document/scans/scan_final.jpg',
+    );
 
     expect(mockWrite).toHaveBeenCalledTimes(1);
     expect(fakeScan.imageUri).toBe('file:///document/scans/scan_final.jpg');
+    expect(fakeScan.label).toBe('common_rust');
+  });
+
+  it('leaves the existing image untouched when no stored URI is given', async () => {
+    const fakeScan = {
+      imageUri: 'file:///cache/photo.jpg',
+      update: jest.fn((updater: (scan: Scan) => void) => {
+        updater(fakeScan as unknown as Scan);
+      }),
+    } as unknown as Scan;
+
+    await updateScanResult(fakeScan, {
+      label: 'healthy',
+      confidence: 0.9,
+      distribution: { healthy: 0.9 },
+    });
+
+    expect(fakeScan.imageUri).toBe('file:///cache/photo.jpg');
   });
 });

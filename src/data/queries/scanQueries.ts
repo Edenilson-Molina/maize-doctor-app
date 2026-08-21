@@ -54,24 +54,6 @@ export async function createScan(data: {
   });
 }
 
-/**
- * Repoints a scan at its final stored image.
- *
- * The photo is persisted in the background while inference runs, so the record is
- * created against the camera's temporary URI and corrected once the copy lands.
- *
- * @param {Scan} scan Scan to update.
- * @param {string} imageUri URI of the permanently stored image.
- * @returns {Promise<void>} Resolves once the write completes.
- */
-export async function updateScanImageUri(scan: Scan, imageUri: string): Promise<void> {
-  await database!.write(async () => {
-    await scan.update((s) => {
-      s.imageUri = imageUri;
-    });
-  });
-}
-
 export async function updateScanResult(
   scan: Scan,
   result: {
@@ -79,12 +61,16 @@ export async function updateScanResult(
     confidence: number;
     distribution: Record<string, number>;
   },
+  imageUri?: string,
 ): Promise<void> {
   await database!.write(async () => {
     await scan.update((s) => {
       s.label = result.label;
       s.confidence = result.confidence;
       s.distribution = result.distribution;
+      if (imageUri) {
+        s.imageUri = imageUri;
+      }
     });
   });
 }

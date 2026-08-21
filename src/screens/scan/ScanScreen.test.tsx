@@ -34,12 +34,10 @@ jest.mock('@/data/scanStorage', () => ({
 
 const mockCreateScan = jest.fn().mockResolvedValue({ id: 'scan-1' });
 const mockUpdateScanResult = jest.fn().mockResolvedValue(undefined);
-const mockUpdateScanImageUri = jest.fn().mockResolvedValue(undefined);
 
 jest.mock('@/data/queries/scanQueries', () => ({
   createScan: (...args: unknown[]) => mockCreateScan(...args),
   updateScanResult: (...args: unknown[]) => mockUpdateScanResult(...args),
-  updateScanImageUri: (...args: unknown[]) => mockUpdateScanImageUri(...args),
 }));
 
 const mockPredict = jest.fn().mockResolvedValue({
@@ -127,6 +125,7 @@ describe('ScanScreen', () => {
           confidence: 0.82,
           distribution: { common_rust: 0.82, healthy: 0.18 },
         },
+        'file:///document/scans/scan_abc.jpg',
       ),
     );
 
@@ -184,7 +183,6 @@ describe('ScanScreen background photo save', () => {
     jest.spyOn(console, 'log').mockImplementation(() => {});
     mockCreateScan.mockResolvedValue({ id: 'scan-1' });
     mockUpdateScanResult.mockResolvedValue(undefined);
-    mockUpdateScanImageUri.mockResolvedValue(undefined);
     mockSavePhotoFile.mockResolvedValue('file:///document/scans/scan_1.jpg');
     mockPredict.mockResolvedValue({
       label: 'common_rust',
@@ -202,48 +200,37 @@ describe('ScanScreen background photo save', () => {
     );
     const { getByLabelText } = await renderScanScreen();
 
-    // Not awaited: the pipeline intentionally keeps a pending save in flight, so the
-    // press only settles after it is released below.
     fireEvent.press(getByLabelText('Tomar foto'));
 
-    // Inference must have run even though the save is still pending.
     await waitFor(() => expect(mockPredict).toHaveBeenCalled());
     expect(mockSavePhotoFile).toHaveBeenCalled();
 
     releaseSave('file:///document/scans/scan_1.jpg');
-    await waitFor(() => expect(mockUpdateScanImageUri).toHaveBeenCalled());
+    await waitFor(() => expect(mockUpdateScanResult).toHaveBeenCalled());
   });
 
-  it('repoints the scan at the stored image once the save finishes', async () => {
+  it('persists the stored image and the result in a single write', async () => {
     const { getByLabelText } = await renderScanScreen();
 
-    await fireEvent.press(getByLabelText('Tomar foto'));
+    fireEvent.press(getByLabelText('Tomar foto'));
 
     await waitFor(() =>
-      expect(mockUpdateScanImageUri).toHaveBeenCalledWith(
+      expect(mockUpdateScanResult).toHaveBeenCalledWith(
         { id: 'scan-1' },
+        expect.objectContaining({ label: 'common_rust' }),
         'file:///document/scans/scan_1.jpg'
       )
     );
   });
 
-  it('still shows the diagnosis when storing the photo fails', async () => {
+  it('still records the diagnosis when storing the photo fails', async () => {
     mockSavePhotoFile.mockRejectedValue(new Error('disk full'));
     const { getByLabelText } = await renderScanScreen();
 
-    await fireEvent.press(getByLabelText('Tomar foto'));
+    fireEvent.press(getByLabelText('Tomar foto'));
 
-    await waitFor(() => expect(mockPredict).toHaveBeenCalled());
     await waitFor(() => expect(mockUpdateScanResult).toHaveBeenCalled());
-  });
-
-  it('does not leave the scan pointing at a missing file when the save fails', async () => {
-    mockSavePhotoFile.mockRejectedValue(new Error('disk full'));
-    const { getByLabelText } = await renderScanScreen();
-
-    await fireEvent.press(getByLabelText('Tomar foto'));
-
-    await waitFor(() => expect(mockPredict).toHaveBeenCalled());
-    expect(mockUpdateScanImageUri).not.toHaveBeenCalled();
+    // No stored URI: the record keeps the camera URI rather than a path to nothing.
+    expect(mockUpdateScanResult.mock.calls[0][2]).toBeUndefined();
   });
 });
