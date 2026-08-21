@@ -2,6 +2,7 @@ import { loadTensorflowModel, type TensorflowModel } from 'react-native-fast-tfl
 import type { DiagnosisClass } from '@/content/diagnosis';
 import type { InferenceEngine, InferenceResult } from './InferenceEngine';
 import { preprocessImage } from './preprocessImage';
+import { preprocessImageWithSkia } from './preprocessImageSkia';
 import { measure, recordMetric } from '@/lib/metrics';
 import { softmax } from './imageTensor';
 import labelsData from '../../assets/model/labels.json';
@@ -70,7 +71,13 @@ export class TFLiteInferenceEngine implements InferenceEngine {
     const isCold = !TFLiteInferenceEngine.hasRunOnce;
     const model = await this.getModel();
 
-    const inputTensor = await measure('preprocess', () => preprocessImage(imageUri, INPUT_SIZE), {
+    // Skia decodes and scales natively, skipping the JPEG round-trip the
+    // ImageManipulator path needs. Kept behind a flag so the previous path stays
+    // available if a device disagrees.
+    const preprocess =
+      process.env.EXPO_PUBLIC_SKIA_PREPROCESS === 'false' ? preprocessImage : preprocessImageWithSkia;
+
+    const inputTensor = await measure('preprocess', () => preprocess(imageUri, INPUT_SIZE), {
       cold: isCold,
     });
 

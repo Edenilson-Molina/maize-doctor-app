@@ -1,8 +1,10 @@
 jest.mock('react-native-fast-tflite', () => ({ loadTensorflowModel: jest.fn() }));
 jest.mock('./preprocessImage', () => ({ preprocessImage: jest.fn() }));
+jest.mock('./preprocessImageSkia', () => ({ preprocessImageWithSkia: jest.fn() }));
 
 import { loadTensorflowModel } from 'react-native-fast-tflite';
 import { preprocessImage } from './preprocessImage';
+import { preprocessImageWithSkia } from './preprocessImageSkia';
 import { TFLiteInferenceEngine } from './TFLiteInferenceEngine';
 import { DIAGNOSIS_CLASSES } from '@/content/diagnosis';
 import labelsData from '../../assets/model/labels.json';
@@ -17,6 +19,7 @@ describe('TFLiteInferenceEngine', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (TFLiteInferenceEngine as any).hasRunOnce = false;
     (preprocessImage as jest.Mock).mockResolvedValue(new Float32Array(3 * 224 * 224));
+    (preprocessImageWithSkia as jest.Mock).mockResolvedValue(new Float32Array(3 * 224 * 224));
   });
 
   it('mapea el logit mas alto a la clase de labels.json en esa posicion, no al orden de DIAGNOSIS_CLASSES', async () => {
@@ -88,6 +91,7 @@ describe('TFLiteInferenceEngine timing metrics', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (TFLiteInferenceEngine as any).hasRunOnce = false;
     (preprocessImage as jest.Mock).mockResolvedValue(new Float32Array(3 * 224 * 224));
+    (preprocessImageWithSkia as jest.Mock).mockResolvedValue(new Float32Array(3 * 224 * 224));
     (loadTensorflowModel as jest.Mock).mockResolvedValue({
       inputs: [{ dataType: 'float32', shape: [1, 3, 224, 224] }],
       outputs: [{ dataType: 'float32', shape: [1, labelsData.labels.length] }],
