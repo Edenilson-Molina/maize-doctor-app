@@ -12,6 +12,7 @@ jest.mock('expo-image-manipulator', () => ({
 }));
 
 const mockCopy = jest.fn().mockResolvedValue(undefined);
+const mockMove = jest.fn().mockResolvedValue(undefined);
 const mockCreate = jest.fn();
 let mockDirectoryExists = false;
 
@@ -38,6 +39,9 @@ jest.mock('expo-file-system', () => ({
     }
     copy(destination: { uri: string }) {
       return mockCopy(destination);
+    }
+    move(destination: { uri: string }) {
+      return mockMove(destination);
     }
   },
 }));
@@ -73,10 +77,10 @@ describe('savePhotoFile', () => {
     expect(mockCreate).not.toHaveBeenCalled();
   });
 
-  it('copies the resized image into the permanent scans directory and returns its URI', async () => {
+  it('moves the resized image into the permanent scans directory and returns its URI', async () => {
     const finalUri = await savePhotoFile('file:///cache/original.jpg');
 
-    expect(mockCopy).toHaveBeenCalled();
+    expect(mockMove).toHaveBeenCalled();
     expect(finalUri).toContain('file:///document/scans/scan_');
   });
 
@@ -88,5 +92,19 @@ describe('savePhotoFile', () => {
     );
 
     expect(finalUri).toContain('file:///document/contributions/contribution_');
+  });
+});
+
+describe('savePhotoFile disk writes', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockDirectoryExists = true;
+  });
+
+  it('moves the rendered file instead of copying it, leaving one write', async () => {
+    await savePhotoFile('file:///cache/original.jpg');
+
+    expect(mockMove).toHaveBeenCalledTimes(1);
+    expect(mockCopy).not.toHaveBeenCalled();
   });
 });

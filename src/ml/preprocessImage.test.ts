@@ -48,15 +48,31 @@ function mockBuildJpegWithOrientation(orientation: number): Uint8Array {
   ]);
 }
 
+const mockBytes = jest.fn();
+const mockReadBytes = jest.fn();
+const mockHandleClose = jest.fn();
+
+function mockContentFor(uri: string): Uint8Array {
+  return uri === 'file://rotated.jpg'
+    ? mockBuildJpegWithOrientation(6)
+    : uri === 'file://original.jpg'
+      ? new Uint8Array([0xff, 0xd8, 0xff, 0xd9]) // JPEG sin EXIF -> orientacion 1
+      : new Uint8Array([1, 2, 3]); // archivo redimensionado; jpeg-js esta mockeado abajo
+}
+
 jest.mock('expo-file-system', () => ({
   File: jest.fn().mockImplementation((uri: string) => ({
-    bytes: jest.fn().mockResolvedValue(
-      uri === 'file://rotated.jpg'
-        ? mockBuildJpegWithOrientation(6)
-        : uri === 'file://original.jpg'
-          ? new Uint8Array([0xff, 0xd8, 0xff, 0xd9]) // JPEG sin EXIF -> orientacion 1
-          : new Uint8Array([1, 2, 3]), // contenido del archivo redimensionado; jpeg-js esta mockeado abajo
-    ),
+    bytes: jest.fn((...args: unknown[]) => {
+      mockBytes(uri, ...args);
+      return Promise.resolve(mockContentFor(uri));
+    }),
+    open: jest.fn(() => ({
+      readBytes: (length: number) => {
+        mockReadBytes(uri, length);
+        return mockContentFor(uri).slice(0, length);
+      },
+      close: mockHandleClose,
+    })),
   })),
 }));
 
@@ -109,5 +125,45 @@ describe('preprocessImage', () => {
     await preprocessImage('file://rotated.jpg', 2);
     const context = (ImageManipulator.manipulate as jest.Mock).mock.results[0].value;
     expect(context.rotate).toHaveBeenCalledWith(90);
+  });
+});
+
+describe('preprocessImage IO efficiency', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('reads only the JPEG header for EXIF instead of the whole file', async () => {
+    await preprocessImage('file://rotated.jpg', 2);
+
+    expect(mockReadBytes).toHaveBeenCalled();
+    const [, length] = mockReadBytes.mock.calls[0];
+    expect(length).toBeLessThanOrEqual(65536);
+    expect(mockBytes).not.toHaveBeenCalledWith('file://rotated.jpg');
+  });
+
+  it('closes the file handle after reading the header', async () => {
+    await preprocessImage('file://rotated.jpg', 2);
+
+    expect(mockHandleClose).toHaveBeenCalled();
+  });
+
+  it('still detects the EXIF rotation from the partial read', async () => {
+    const context = (ImageManipulator.manipulate as jest.Mock)();
+    (context.rotate as jest.Mock).mockClear();
+
+    await preprocessImage('file://rotated.jpg', 2);
+
+    expect(context.rotate).toHaveBeenCalledWith(90);
+  });
+
+  it('does not waste time on lossless compression for the throwaway intermediate', async () => {
+    const context = (ImageManipulator.manipulate as jest.Mock)();
+    const rendered = await (context.renderAsync as jest.Mock)();
+
+    await preprocessImage('file://original.jpg', 2);
+
+    const saveArgs = (rendered.saveAsync as jest.Mock).mock.calls.at(-1)?.[0];
+    expect(saveArgs.compress).toBeLessThan(1);
   });
 });

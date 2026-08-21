@@ -26,7 +26,10 @@ export async function savePhotoFile(
   const resized = await rendered.saveAsync({ compress: JPEG_COMPRESSION, format: SaveFormat.JPEG });
 
   const destination = new File(getStorageDirectory(subdir), generateFileName(filePrefix));
-  await new File(resized.uri).copy(destination);
+  // move, not copy: saveAsync already wrote the JPEG to the cache directory, so copying
+  // would write the same multi-megabyte file to disk a second time and leave the cache
+  // copy behind.
+  await new File(resized.uri).move(destination);
 
   return destination.uri;
 }
