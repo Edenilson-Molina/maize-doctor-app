@@ -58,7 +58,7 @@ describe('savePhotoFile', () => {
     await savePhotoFile('file:///cache/original.jpg');
 
     expect(mockManipulate).toHaveBeenCalledWith('file:///cache/original.jpg');
-    expect(mockResize).toHaveBeenCalledWith({ width: 1600 });
+    expect(mockResize).toHaveBeenCalledWith({ width: 1024 });
   });
 
   it('creates the scans directory if it does not exist', async () => {

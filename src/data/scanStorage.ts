@@ -1,7 +1,12 @@
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { Directory, File, Paths } from 'expo-file-system';
 
-const MAX_DIMENSION = 1600;
+/**
+ * Stored photos are only ever shown as a history thumbnail and a detail preview, so
+ * 1024px is ample; the extra pixels of a larger bound cost JPEG encoding time on
+ * every scan for detail nobody sees.
+ */
+const MAX_DIMENSION = 1024;
 const JPEG_COMPRESSION = 0.8;
 
 function generateFileName(prefix: string): string {

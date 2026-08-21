@@ -12,7 +12,7 @@ jest.mock('../database', () => ({
   },
 }));
 
-import { updateScanResult, getScanById } from './scanQueries';
+import { updateScanResult, updateScanImageUri, getScanById } from './scanQueries';
 import type { Scan } from '../models/Scan';
 
 describe('updateScanResult', () => {
@@ -54,5 +54,24 @@ describe('getScanById', () => {
 
     expect(mockFind).toHaveBeenCalledWith('scan-1');
     expect(result).toBe(fakeScan);
+  });
+});
+
+describe('updateScanImageUri', () => {
+  beforeEach(() => {
+    mockWrite.mockClear();
+  });
+
+  it('points the scan at its final stored image', async () => {
+    const fakeScan = {
+      update: jest.fn((updater: (scan: Scan) => void) => {
+        updater(fakeScan as unknown as Scan);
+      }),
+    } as unknown as Scan;
+
+    await updateScanImageUri(fakeScan, 'file:///document/scans/scan_final.jpg');
+
+    expect(mockWrite).toHaveBeenCalledTimes(1);
+    expect(fakeScan.imageUri).toBe('file:///document/scans/scan_final.jpg');
   });
 });

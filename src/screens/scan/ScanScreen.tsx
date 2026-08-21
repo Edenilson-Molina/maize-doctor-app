@@ -6,7 +6,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Icon } from '@/components/Icon';
 import { LeafOverlay } from './LeafOverlay';
 import { savePhotoFile } from '@/data/scanStorage';
-import { createScan, updateScanResult } from '@/data/queries/scanQueries';
+import { createScan, updateScanResult, updateScanImageUri } from '@/data/queries/scanQueries';
 import { getInferenceEngine } from '@/ml';
 import { dumpMetrics, measure } from '@/lib/metrics';
 import { logger } from '@/lib/logger';
@@ -47,30 +47,39 @@ export function ScanScreen({ navigation }: Props) {
    * @returns {Promise<void>} Resolves once the scan is stored and navigation happened.
    */
   async function runScanPipeline(imageUri: string) {
-    {
-      const finalUri = await savePhotoFile(imageUri);
-      const scan = await createScan({ imageUri: finalUri, label: null });
-      try {
-        const result = await getInferenceEngine().predict(finalUri);
-        await updateScanResult(scan, result);
+    const scan = await createScan({ imageUri, label: null });
 
-        navigation.navigate('ScanResult', {
-          imageUri: finalUri,
-          label: result.label,
-          confidence: result.confidence,
-          distribution: result.distribution,
-          temperature: null,
-          humidity: null,
-          createdAt: Date.now(),
-        });
-      } catch (error) {
-        logger.error(
-          `No se pudo analizar el escaneo ${scan.id} (imagen ya guardada en ${finalUri})`,
-          error,
-        );
-        setScanError(true);
-        throw error;
-      }
+    // Storing the photo re-encodes a full-resolution JPEG and dominated the pipeline,
+    // yet the model never reads that file - it works from the camera's own capture. So
+    // it runs in the background and the record is repointed once it lands; until then
+    // the scan stays usable from the camera URI.
+    const storedImage = savePhotoFile(imageUri)
+      .then((storedUri) => updateScanImageUri(scan, storedUri))
+      .catch((error) => {
+        logger.error(`No se pudo guardar la imagen del escaneo ${scan.id}`, error);
+      });
+
+    try {
+      const result = await getInferenceEngine().predict(imageUri);
+
+      navigation.navigate('ScanResult', {
+        imageUri,
+        label: result.label,
+        confidence: result.confidence,
+        distribution: result.distribution,
+        temperature: null,
+        humidity: null,
+        createdAt: Date.now(),
+      });
+
+      // Navigating first means this write no longer delays the result screen.
+      await updateScanResult(scan, result);
+    } catch (error) {
+      logger.error(`No se pudo analizar el escaneo ${scan.id}`, error);
+      setScanError(true);
+      throw error;
+    } finally {
+      await storedImage;
     }
   }
 
