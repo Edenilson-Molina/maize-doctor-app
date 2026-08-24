@@ -212,19 +212,6 @@ export function ProfileScreen() {
           Configuración
         </Text>
         <View className="bg-surface-container-low rounded-2xl border border-outline-variant overflow-hidden">
-          <SettingsItem icon="account-cog" label="Configuración de Cuenta" disabled />
-          <Divider />
-          <SettingsItem icon="bell-outline" label="Preferencias de Notificaciones" disabled />
-          <Divider />
-          <SettingsItem icon="cloud-off-outline" label="Modo Offline" trailing="toggle" disabled />
-          <Divider />
-          <SettingsItem
-            icon="face-agent"
-            label="Soporte Técnico"
-            trailingIcon="open-in-new"
-            disabled
-          />
-          <Divider />
           {isGuest ? (
             <Pressable
               className="flex-row items-center px-4"
@@ -289,60 +276,3 @@ export function ProfileScreen() {
   );
 }
 
-/**
- * Row in the settings card.
- *
- * Options with no behaviour yet render visibly disabled and non-interactive, so the
- * card never offers a control that silently does nothing when tapped.
- */
-function SettingsItem({
-  icon,
-  label,
-  trailing,
-  trailingIcon,
-  disabled = false,
-}: {
-  icon: string;
-  label: string;
-  trailing?: 'toggle';
-  trailingIcon?: string;
-  disabled?: boolean;
-}) {
-  return (
-    <Pressable
-      className="flex-row items-center justify-between px-4"
-      style={{ height: 48, opacity: disabled ? 0.45 : 1 }}
-      disabled={disabled}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ disabled }}
-    >
-      <View className="flex-row items-center flex-1">
-        <Icon name={icon as never} size={22} color="#717973" />
-        <Text className="font-inter text-lg text-on-surface ml-4">{label}</Text>
-        {disabled ? (
-          <Text className="font-jetbrains text-label-md text-on-surface-variant ml-2">
-            Próximamente
-          </Text>
-        ) : null}
-      </View>
-      {trailing === 'toggle' ? (
-        <View
-          className="w-11 h-6 rounded-full justify-center px-0.5"
-          style={{
-            alignItems: disabled ? 'flex-start' : 'flex-end',
-            backgroundColor: disabled ? '#c1c8c2' : '#012d1d',
-          }}
-        >
-          <View className="w-5 h-5 rounded-full bg-white" />
-        </View>
-      ) : (
-        <Icon name={(trailingIcon ?? 'chevron-right') as never} size={20} color="#717973" />
-      )}
-    </Pressable>
-  );
-}
-
-function Divider() {
-  return <View className="h-[1px] bg-outline-variant mx-4" />;
-}

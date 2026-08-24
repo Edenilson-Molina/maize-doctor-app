@@ -173,8 +173,10 @@ describe('ProfileScreen inert settings', () => {
     mockHasMismatch.mockResolvedValue(false);
   });
 
-  it('marks the not-yet-available settings as disabled', async () => {
-    const { findByLabelText } = await renderProfileScreen();
+  it('does not offer settings that have no behaviour yet', async () => {
+    const { findByLabelText, queryByLabelText, queryByText } = await renderProfileScreen();
+
+    await findByLabelText('Iniciar Sesión');
 
     for (const label of [
       'Preferencias de Notificaciones',
@@ -182,15 +184,9 @@ describe('ProfileScreen inert settings', () => {
       'Soporte Técnico',
       'Configuración de Cuenta',
     ]) {
-      const item = await findByLabelText(label);
-      expect(item.props.accessibilityState?.disabled).toBe(true);
+      expect(queryByLabelText(label)).toBeNull();
     }
-  });
-
-  it('explains that those settings are not available yet', async () => {
-    const { findAllByText } = await renderProfileScreen();
-
-    expect((await findAllByText('Próximamente')).length).toBeGreaterThan(0);
+    expect(queryByText('Próximamente')).toBeNull();
   });
 
   it('keeps the working actions enabled', async () => {
