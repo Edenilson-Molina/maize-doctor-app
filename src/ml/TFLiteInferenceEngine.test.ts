@@ -1,6 +1,13 @@
 jest.mock('react-native-fast-tflite', () => ({ loadTensorflowModel: jest.fn() }));
 jest.mock('./preprocessImage', () => ({ preprocessImage: jest.fn() }));
 jest.mock('./preprocessImageSkia', () => ({ preprocessImageWithSkia: jest.fn() }));
+jest.mock('expo-asset', () => ({
+  Asset: {
+    fromModule: jest.fn(() => ({
+      downloadAsync: jest.fn().mockResolvedValue({ localUri: 'file:///model_int8.tflite' }),
+    })),
+  },
+}));
 
 import { loadTensorflowModel } from 'react-native-fast-tflite';
 import { preprocessImage } from './preprocessImage';

@@ -1,3 +1,4 @@
+import { Asset } from 'expo-asset';
 import { loadTensorflowModel, type TensorflowModel } from 'react-native-fast-tflite';
 import type { DiagnosisClass } from '@/content/diagnosis';
 import type { InferenceEngine, InferenceResult } from './InferenceEngine';
@@ -10,8 +11,23 @@ import labelsData from '../../assets/model/labels.json';
 const INPUT_SIZE = 224;
 const LABELS = labelsData.labels as DiagnosisClass[];
 
-function resolveModelAsset(): number {
-  return require('../../assets/model/model_int8.tflite');
+/**
+ * Resolves the bundled .tflite model to a `file://` URI.
+ *
+ * `loadTensorflowModel(require(...))` relies on `Image.resolveAssetSource`,
+ * which in release builds points at an Android resource name (no URL scheme)
+ * instead of a fetchable path - the library's native asset loader then fails
+ * with `MalformedURLException: no protocol`. Materializing the asset via
+ * `expo-asset` first sidesteps that path and always yields a real file URI.
+ *
+ * @returns {Promise<string>} `file://` URI of the model on local storage.
+ */
+async function resolveModelAsset(): Promise<string> {
+  const asset = await Asset.fromModule(require('../../assets/model/model_int8.tflite')).downloadAsync();
+  if (!asset.localUri) {
+    throw new Error('TFLiteInferenceEngine: no se pudo materializar el asset del modelo .tflite');
+  }
+  return asset.localUri;
 }
 
 /**
@@ -29,12 +45,12 @@ export class TFLiteInferenceEngine implements InferenceEngine {
 
   private async getModel(): Promise<TensorflowModel> {
     if (!TFLiteInferenceEngine.modelPromise) {
-      TFLiteInferenceEngine.modelPromise = loadTensorflowModel(resolveModelAsset(), []).catch(
-        (err) => {
+      TFLiteInferenceEngine.modelPromise = resolveModelAsset()
+        .then((uri) => loadTensorflowModel({ url: uri }, []))
+        .catch((err) => {
           TFLiteInferenceEngine.modelPromise = null;
           throw err;
-        },
-      );
+        });
     }
     const model = await TFLiteInferenceEngine.modelPromise;
     this.assertContract(model);
