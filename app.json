@@ -13,6 +13,7 @@
     },
     "android": {
       "package": "com.doctormaiz.app",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#1B4332",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -34,7 +35,8 @@
           "photosPermission": "DoctorMaiz necesita acceso a tus fotos para analizar una imagen existente."
         }
       ],
-      "react-native-fast-tflite"
+      "react-native-fast-tflite",
+      "./plugins/withReleaseSigning"
     ]
   }
 }

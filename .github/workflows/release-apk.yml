@@ -1,0 +1,229 @@
+name: Release APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      min_supported_version_code:
+        description: 'Version code minimo soportado (por debajo, la actualizacion es obligatoria)'
+        required: false
+        default: '1'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-apk
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        # --testTimeout mas alto que los 5s por defecto: varios tests montan pantallas
+        # completas y en un runner (mas lento que una maquina de desarrollo) rozan el
+        # limite, produciendo fallos por timeout que no son regresiones reales.
+        run: npm test -- --ci --runInBand --testTimeout=30000
+
+      - name: Resolve version
+        id: version
+        env:
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          VERSION_NAME=$(node -p "require('./app.json').expo.version")
+          # El versionCode debe crecer en cada release: Android rechaza instalar un APK
+          # cuyo versionCode no supere al instalado, y el cliente de actualizaciones
+          # ignora los releases que no sean mayores al que corre en el telefono.
+          VERSION_CODE=$RUN_NUMBER
+          echo "name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+          # Guion y no '+': el tag va dentro de la download_url que se guarda en la
+          # base y que el telefono abre con Linking.openURL, y '+' en un path de URL
+          # es ambiguo (algunos clientes lo interpretan como espacio).
+          echo "tag=v$VERSION_NAME-$VERSION_CODE" >> "$GITHUB_OUTPUT"
+          echo "apk=maize-doctor-$VERSION_NAME-$VERSION_CODE.apk" >> "$GITHUB_OUTPUT"
+
+      - name: Apply version code
+        env:
+          VERSION_CODE: ${{ steps.version.outputs.code }}
+        run: |
+          node -e "
+            const fs = require('fs');
+            const config = JSON.parse(fs.readFileSync('app.json', 'utf8'));
+            config.expo.android.versionCode = Number(process.env.VERSION_CODE);
+            fs.writeFileSync('app.json', JSON.stringify(config, null, 2) + '\n');
+          "
+
+      - name: Restore signing keystore
+        id: signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "signed=debug" >> "$GITHUB_OUTPUT"
+            echo "::warning::Sin ANDROID_KEYSTORE_BASE64: el APK se firmara con la keystore de debug y no servira para actualizar instalaciones firmadas con otra clave."
+            exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > release.keystore
+          mkdir -p android
+          cat > android/keystore.properties <<EOF
+          MAIZE_STORE_FILE=../../release.keystore
+          MAIZE_STORE_PASSWORD=$KEYSTORE_PASSWORD
+          MAIZE_KEY_ALIAS=$KEY_ALIAS
+          MAIZE_KEY_PASSWORD=$KEY_PASSWORD
+          EOF
+          echo "signed=release" >> "$GITHUB_OUTPUT"
+
+      - name: Prebuild android project
+        run: npx expo prebuild --platform android --no-install
+        env:
+          NODE_ENV: production
+
+      - name: Restore signing keystore after prebuild
+        if: steps.signing.outputs.signed == 'release'
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          # `expo prebuild` borra y regenera android/ entera, llevandose el
+          # keystore.properties que escribimos antes.
+          cat > android/keystore.properties <<EOF
+          MAIZE_STORE_FILE=../../release.keystore
+          MAIZE_STORE_PASSWORD=$KEYSTORE_PASSWORD
+          MAIZE_KEY_ALIAS=$KEY_ALIAS
+          MAIZE_KEY_PASSWORD=$KEY_PASSWORD
+          EOF
+
+      - name: Build release APK
+        run: ./gradlew assembleRelease --no-daemon
+        working-directory: android
+        env:
+          NODE_ENV: production
+
+      - name: Stage APK
+        id: apk
+        env:
+          APK_NAME: ${{ steps.version.outputs.apk }}
+        run: |
+          SRC=android/app/build/outputs/apk/release/app-release.apk
+          test -f "$SRC"
+          cp "$SRC" "$APK_NAME"
+          echo "path=$APK_NAME" >> "$GITHUB_OUTPUT"
+          echo "size=$(du -h "$APK_NAME" | cut -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Verify the APK targets production
+        run: |
+          unzip -p "${{ steps.apk.outputs.path }}" assets/index.android.bundle > bundle.js
+
+          if ! grep -aq "api.maize-doctor.deras.dev" bundle.js; then
+            echo "::error::El bundle no apunta a la API de produccion"
+            exit 1
+          fi
+          # El guard de getInferenceEngine() solo sobrevive al tree-shaking si la
+          # rama del mock sigue viva, es decir si EXPO_PUBLIC_USE_MOCK_MODEL no era 'false'.
+          if grep -aq "refusing to ship" bundle.js; then
+            echo "::error::El motor mock quedo en el bundle de produccion"
+            exit 1
+          fi
+          if ! grep -aq "/app-version" bundle.js; then
+            echo "::error::El cliente de actualizaciones no quedo en el bundle"
+            exit 1
+          fi
+          echo "Bundle verificado: apunta a produccion, sin motor mock, con cliente de actualizaciones."
+
+      - name: Publish GitHub release
+        id: release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.name }} (${{ steps.version.outputs.code }})
+          body: |
+            APK de `${{ github.sha }}`.
+
+            - versionName: `${{ steps.version.outputs.name }}`
+            - versionCode: `${{ steps.version.outputs.code }}`
+            - Firma: `${{ steps.signing.outputs.signed }}`
+          files: ${{ steps.apk.outputs.path }}
+          fail_on_unmatched_files: true
+
+      - name: Register the release in the API
+        id: register
+        env:
+          API_URL: ${{ vars.API_URL || 'https://api.maize-doctor.deras.dev' }}
+          ADMIN_TOKEN: ${{ secrets.RELEASE_ADMIN_TOKEN }}
+          DOWNLOAD_URL: https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/${{ steps.version.outputs.apk }}
+          MIN_SUPPORTED: ${{ inputs.min_supported_version_code || '1' }}
+          VERSION_NAME: ${{ steps.version.outputs.name }}
+          VERSION_CODE: ${{ steps.version.outputs.code }}
+        run: |
+          if [ -z "$ADMIN_TOKEN" ]; then
+            echo "registered=skipped" >> "$GITHUB_OUTPUT"
+            echo "::warning::Sin RELEASE_ADMIN_TOKEN: el release no se registro en la API, las apps instaladas no lo veran."
+            exit 0
+          fi
+
+          BODY=$(node -e "
+            console.log(JSON.stringify({
+              platform: 'android',
+              versionCode: Number(process.env.VERSION_CODE),
+              versionName: process.env.VERSION_NAME,
+              minSupportedVersionCode: Number(process.env.MIN_SUPPORTED),
+              downloadUrl: process.env.DOWNLOAD_URL,
+              releaseNotes: null,
+            }));
+          ")
+
+          STATUS=$(curl -sS -o response.json -w '%{http_code}' \
+            -X POST "$API_URL/app-releases" \
+            -H "Authorization: Bearer $ADMIN_TOKEN" \
+            -H 'Content-Type: application/json' \
+            -d "$BODY")
+
+          echo "HTTP $STATUS"
+          cat response.json
+          if [ "$STATUS" != "201" ]; then
+            echo "::error::La API rechazo el registro del release (HTTP $STATUS)"
+            exit 1
+          fi
+          echo "registered=ok" >> "$GITHUB_OUTPUT"
+
+      - name: Summary
+        if: always()
+        env:
+          DOWNLOAD_URL: https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/${{ steps.version.outputs.apk }}
+        run: |
+          {
+            echo "## APK ${{ steps.version.outputs.name }} (${{ steps.version.outputs.code }})"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Descarga | $DOWNLOAD_URL |"
+            echo "| Tamano | ${{ steps.apk.outputs.size }} |"
+            echo "| Firma | ${{ steps.signing.outputs.signed }} |"
+            echo "| Registrado en la API | ${{ steps.register.outputs.registered || 'no' }} |"
+          } >> "$GITHUB_STEP_SUMMARY"

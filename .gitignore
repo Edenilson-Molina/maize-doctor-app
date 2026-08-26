@@ -43,3 +43,7 @@ yarn-error.*
 
 # ML checkpoints (never belong in this repo — see maize-doctor-classifier)
 *.pth
+
+# release signing (local only)
+*.keystore
+credentials/

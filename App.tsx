@@ -22,6 +22,8 @@ import {
 import { AuthProvider } from '@/auth/AuthContext';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { startSyncListener } from '@/api/syncQueue';
+import { UpdatePrompt } from '@/components/UpdatePrompt';
+import { useAppUpdate } from '@/hooks/useAppUpdate';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -42,6 +44,8 @@ export default function App() {
     }
   }, [fontsLoaded, fontError]);
 
+  const update = useAppUpdate();
+
   useEffect(() => {
     const unsubscribe = startSyncListener();
     return unsubscribe;
@@ -57,6 +61,12 @@ export default function App() {
         <AuthProvider>
           <RootNavigator />
         </AuthProvider>
+        <UpdatePrompt
+          visible={update.visible}
+          info={update.info}
+          required={update.required}
+          onDismiss={update.dismiss}
+        />
         <StatusBar style="light" />
       </View>
     </SafeAreaProvider>
