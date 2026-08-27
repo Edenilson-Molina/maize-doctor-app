@@ -76,4 +76,32 @@ function withReleaseSigning(config) {
   });
 }
 
-module.exports = (config) => withArmOnlyAbis(withReleaseSigning(config));
+/**
+ * Enables R8 code shrinking/obfuscation and resource shrinking for release builds.
+ *
+ * `android/app/build.gradle` already reads these properties and defaults both
+ * to `false`. Shrinking reduces the size of the release `classes*.dex` files
+ * and drops unreferenced Android resources.
+ *
+ * @param {import('expo/config').ExpoConfig} config Expo config being modified.
+ * @returns {import('expo/config').ExpoConfig} Config with the properties applied.
+ */
+function withReleaseMinifyEnabled(config) {
+  return withGradleProperties(config, (cfg) => {
+    const props = {
+      'android.enableMinifyInReleaseBuilds': 'true',
+      'android.enableShrinkResourcesInReleaseBuilds': 'true',
+    };
+    for (const [key, value] of Object.entries(props)) {
+      const entry = cfg.modResults.find((item) => item.type === 'property' && item.key === key);
+      if (entry) {
+        entry.value = value;
+      } else {
+        cfg.modResults.push({ type: 'property', key, value });
+      }
+    }
+    return cfg;
+  });
+}
+
+module.exports = (config) => withReleaseMinifyEnabled(withArmOnlyAbis(withReleaseSigning(config)));

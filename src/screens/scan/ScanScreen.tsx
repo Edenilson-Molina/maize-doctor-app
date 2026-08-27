@@ -66,6 +66,7 @@ export function ScanScreen({ navigation }: Props) {
         label: result.label,
         confidence: result.confidence,
         distribution: result.distribution,
+        isUnrecognized: result.isUnrecognized,
         temperature: null,
         humidity: null,
         createdAt: Date.now(),

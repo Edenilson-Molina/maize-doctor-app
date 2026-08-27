@@ -1,4 +1,4 @@
-import { buildInputTensor, softmax } from './imageTensor';
+import { buildInputTensor, isUnrecognized, softmax } from './imageTensor';
 
 describe('buildInputTensor', () => {
   it('normaliza un pixel segun mean/std de ImageNet', () => {
@@ -41,5 +41,25 @@ describe('softmax', () => {
     const probs = softmax(new Float32Array([1000, 1001, 1002]));
     expect(Number.isNaN(probs[0])).toBe(false);
     expect(probs.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 4);
+  });
+});
+
+describe('isUnrecognized', () => {
+  it('acepta una prediccion con confianza alta y margen amplio', () => {
+    expect(isUnrecognized(new Float32Array([0.85, 0.1, 0.05]))).toBe(false);
+  });
+
+  it('rechaza cuando la confianza top-1 no alcanza el minimo', () => {
+    expect(isUnrecognized(new Float32Array([0.55, 0.3, 0.15]))).toBe(true);
+  });
+
+  it('rechaza cuando el margen entre top-1 y top-2 es insuficiente aunque la confianza sea alta', () => {
+    // top1=0.65, top2=0.6: ambas superan 0.6 de confianza, pero el margen (0.05) es insuficiente
+    expect(isUnrecognized(new Float32Array([0.65, 0.6, 0.05]))).toBe(true);
+  });
+
+  it('acepta cuando confianza y margen superan ambos umbrales por poco', () => {
+    // top1=0.65 (>0.6), top2=0.45, margen=0.2 (>0.15)
+    expect(isUnrecognized(new Float32Array([0.65, 0.45, 0.35]))).toBe(false);
   });
 });

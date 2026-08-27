@@ -5,7 +5,7 @@ import type { InferenceEngine, InferenceResult } from './InferenceEngine';
 import { preprocessImage } from './preprocessImage';
 import { preprocessImageWithSkia } from './preprocessImageSkia';
 import { measure, recordMetric } from '@/lib/metrics';
-import { softmax } from './imageTensor';
+import { isUnrecognized, softmax } from './imageTensor';
 import labelsData from '../../assets/model/labels.json';
 
 const INPUT_SIZE = 224;
@@ -121,6 +121,7 @@ export class TFLiteInferenceEngine implements InferenceEngine {
       label: LABELS[bestIndex],
       confidence: probabilities[bestIndex],
       distribution,
+      isUnrecognized: isUnrecognized(probabilities),
     };
   }
 }

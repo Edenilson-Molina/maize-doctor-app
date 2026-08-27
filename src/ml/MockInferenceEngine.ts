@@ -1,5 +1,6 @@
 import { DIAGNOSIS_CLASSES, type DiagnosisClass } from '@/content/diagnosis';
 import type { InferenceEngine, InferenceResult } from './InferenceEngine';
+import { MIN_CONFIDENCE, MIN_MARGIN } from './imageTensor';
 
 const MIN_LATENCY_MS = 600;
 const MAX_LATENCY_MS = 1500;
@@ -36,7 +37,17 @@ export class MockInferenceEngine implements InferenceEngine {
     const confidence =
       MIN_TOP_CONFIDENCE + Math.random() * (MAX_TOP_CONFIDENCE - MIN_TOP_CONFIDENCE);
     const distribution = buildDistribution(label, confidence);
+    const second = Math.max(
+      ...Object.entries(distribution)
+        .filter(([c]) => c !== label)
+        .map(([, p]) => p),
+    );
 
-    return { label, confidence, distribution };
+    return {
+      label,
+      confidence,
+      distribution,
+      isUnrecognized: confidence < MIN_CONFIDENCE || confidence - second < MIN_MARGIN,
+    };
   }
 }

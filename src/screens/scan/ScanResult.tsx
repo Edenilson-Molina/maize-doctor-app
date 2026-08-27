@@ -30,8 +30,16 @@ function getSecondLikelyClass(
 }
 
 export function ScanResult({ route, navigation }: Props) {
-  const { imageUri, label, confidence, distribution, temperature, humidity, createdAt } =
-    route.params;
+  const {
+    imageUri,
+    label,
+    confidence,
+    distribution,
+    isUnrecognized,
+    temperature,
+    humidity,
+    createdAt,
+  } = route.params;
   const info = DIAGNOSIS_MAP[label];
   const badge = getPriorityBadge(info);
   const secondLikely =
@@ -45,6 +53,45 @@ export function ScanResult({ route, navigation }: Props) {
     hour: '2-digit',
     minute: '2-digit',
   });
+
+  if (isUnrecognized) {
+    return (
+      <ScrollView
+        className="flex-1 bg-background"
+        contentContainerClassName="px-container-padding pb-6"
+      >
+        <View className="mt-stack-sm rounded-xl overflow-hidden border border-surface-variant shadow-sm">
+          <Image
+            source={{ uri: imageUri }}
+            style={{ width: '100%', height: 256 }}
+            resizeMode="cover"
+          />
+        </View>
+
+        <View
+          className="bg-surface-container-lowest rounded-xl p-stack-md border border-surface-variant shadow-sm mt-stack-md items-center"
+          style={{ borderTopWidth: 4, borderTopColor: '#b3261e' }}
+        >
+          <Icon name="image-search-outline" size={40} color="#b3261e" />
+          <Text className="font-hanken-bold text-headline-md text-on-surface mt-3 text-center">
+            No se pudo identificar
+          </Text>
+          <Text className="font-inter text-body-md text-on-surface-variant mt-2 text-center">
+            La imagen no parece corresponder a una hoja de maíz reconocible. Intenta tomar la foto
+            con mejor luz, enfocando de cerca una sola hoja.
+          </Text>
+        </View>
+
+        <Pressable
+          onPress={() => navigation.goBack()}
+          className="bg-primary rounded-full h-touch-target items-center justify-center flex-row gap-2 mt-stack-md"
+        >
+          <Icon name="camera" size={20} color="#ffffff" />
+          <Text className="font-jetbrains text-label-md text-on-primary">Volver a Escanear</Text>
+        </Pressable>
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView

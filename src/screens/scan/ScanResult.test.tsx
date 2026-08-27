@@ -16,6 +16,7 @@ function buildParams(label: DiagnosisClass, confidence = 0.9): ScanResultParams 
     label,
     confidence,
     distribution,
+    isUnrecognized: false,
     temperature: 24,
     humidity: 65,
     createdAt: Date.now(),
@@ -60,6 +61,7 @@ describe('ScanResult', () => {
       label: 'healthy',
       confidence: 0.4,
       distribution,
+      isUnrecognized: false,
       temperature: 24,
       humidity: 65,
       createdAt: Date.now(),
@@ -74,6 +76,14 @@ describe('ScanResult', () => {
     const { queryByText } = await renderResult(buildParams('healthy', 0.95));
 
     expect(queryByText(/Podría tratarse también de/)).toBeNull();
+  });
+
+  it('blocks the diagnosis and shows the unrecognized message when isUnrecognized is true', async () => {
+    const params = { ...buildParams('healthy'), isUnrecognized: true };
+    const { getByText, queryByText } = await renderResult(params);
+
+    expect(getByText('No se pudo identificar')).toBeTruthy();
+    expect(queryByText(DIAGNOSIS_MAP.healthy.description)).toBeNull();
   });
 
   it('shows N/D for missing environmental readings', async () => {

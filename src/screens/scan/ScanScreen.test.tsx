@@ -44,6 +44,7 @@ const mockPredict = jest.fn().mockResolvedValue({
   label: 'common_rust',
   confidence: 0.82,
   distribution: { common_rust: 0.82, healthy: 0.18 },
+  isUnrecognized: false,
 });
 
 jest.mock('@/ml', () => ({
@@ -84,6 +85,7 @@ describe('ScanScreen', () => {
       label: 'common_rust',
       confidence: 0.82,
       distribution: { common_rust: 0.82, healthy: 0.18 },
+      isUnrecognized: false,
     });
   });
 
@@ -124,6 +126,7 @@ describe('ScanScreen', () => {
           label: 'common_rust',
           confidence: 0.82,
           distribution: { common_rust: 0.82, healthy: 0.18 },
+          isUnrecognized: false,
         },
         'file:///document/scans/scan_abc.jpg',
       ),
@@ -151,6 +154,7 @@ describe('ScanScreen pipeline metrics', () => {
       label: 'common_rust',
       confidence: 0.82,
       distribution: { common_rust: 0.82, healthy: 0.18 },
+      isUnrecognized: false,
     });
   });
 
@@ -188,6 +192,7 @@ describe('ScanScreen background photo save', () => {
       label: 'common_rust',
       confidence: 0.82,
       distribution: { common_rust: 0.82, healthy: 0.18 },
+      isUnrecognized: false,
     });
   });
 

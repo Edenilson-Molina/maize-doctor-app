@@ -13,6 +13,7 @@ export type ScanStackParamList = {
     label: DiagnosisClass;
     confidence: number;
     distribution: Record<DiagnosisClass, number>;
+    isUnrecognized: boolean;
     temperature: number | null;
     humidity: number | null;
     createdAt: number;

@@ -26,7 +26,8 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "DoctorMaiz necesita acceso a la cámara para escanear hojas de maíz."
+          "cameraPermission": "DoctorMaiz necesita acceso a la cámara para escanear hojas de maíz.",
+          "barcodeScannerEnabled": false
         }
       ],
       [
