@@ -7,6 +7,7 @@ import { hasNativeModule, database } from '@/data/database';
 import { Q } from '@nozbe/watermelondb';
 import { DIAGNOSIS_MAP, type DiagnosisClass } from '@/content/diagnosis';
 import { Icon } from '@/components/Icon';
+import { ScanThumbnail } from '@/components/ScanThumbnail';
 import { getMockScans } from '@/data/mockData';
 import { useAuth } from '@/auth/AuthContext';
 import type { HomeStackParamList, AppTabParamList } from '@/navigation/types';
@@ -215,9 +216,9 @@ function ScanCard({ scan }: { scan: ScanSummary }) {
       className="bg-surface-container-lowest rounded-xl border border-surface-variant overflow-hidden shadow-sm"
       style={{ width: '100%' }}
     >
-      {/* Image placeholder */}
-      <View className="h-28 bg-surface-container items-center justify-center relative">
-        <Icon name="leaf" size={40} color="#c1c8c2" />
+      {/* Image thumbnail */}
+      <View className="h-28 relative">
+        <ScanThumbnail uri={scan.imageUri} size={40} />
         {/* Status strip top */}
         <View
           className="absolute top-0 left-0 right-0 h-1"

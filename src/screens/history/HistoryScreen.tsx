@@ -5,6 +5,7 @@ import { database, hasNativeModule } from '@/data/database';
 import { Q } from '@nozbe/watermelondb';
 import { DIAGNOSIS_MAP, DIAGNOSIS_CLASSES, type DiagnosisClass } from '@/content/diagnosis';
 import { Icon } from '@/components/Icon';
+import { ScanThumbnail } from '@/components/ScanThumbnail';
 import { getMockScans } from '@/data/mockData';
 import type { HistoryStackParamList } from '@/navigation/types';
 
@@ -224,9 +225,9 @@ function HistoryScanCard({ scan }: { scan: ScanRow }) {
         style={{ backgroundColor: info.statusColor }}
       />
 
-      {/* Image thumbnail placeholder */}
-      <View className="w-[100px] h-full bg-surface-container items-center justify-center">
-        <Icon name="leaf" size={36} color="#c1c8c2" />
+      {/* Image thumbnail */}
+      <View className="w-[100px] h-full">
+        <ScanThumbnail uri={scan.imageUri} size={36} />
       </View>
 
       {/* Content */}
