@@ -1,4 +1,4 @@
-import { buildInputTensor, isUnrecognized, softmax } from './imageTensor';
+import { buildInputTensor, isUnrecognized, mahalanobisDistance, softmax } from './imageTensor';
 
 describe('buildInputTensor', () => {
   it('normaliza un pixel segun mean/std de ImageNet', () => {
@@ -61,5 +61,40 @@ describe('isUnrecognized', () => {
   it('acepta cuando confianza y margen superan ambos umbrales por poco', () => {
     // top1=0.65 (>0.6), top2=0.45, margen=0.2 (>0.15)
     expect(isUnrecognized(new Float32Array([0.65, 0.45, 0.35]))).toBe(false);
+  });
+});
+
+describe('mahalanobisDistance', () => {
+  // Covarianza identidad: la distancia de Mahalanobis se reduce a distancia
+  // euclidiana al cuadrado, facil de verificar a mano.
+  const identity = new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]);
+
+  it('con covarianza identidad, es la distancia euclidiana al cuadrado al centroide', () => {
+    const features = new Float32Array([3, 0, 0]);
+    const mean = new Float32Array([0, 0, 0]);
+    // (3-0)^2 + (0-0)^2 + (0-0)^2 = 9
+    expect(mahalanobisDistance(features, [mean], identity)).toBeCloseTo(9, 5);
+  });
+
+  it('devuelve 0 cuando features coincide exactamente con un centroide', () => {
+    const features = new Float32Array([1, 2, 3]);
+    const mean = new Float32Array([1, 2, 3]);
+    expect(mahalanobisDistance(features, [mean], identity)).toBeCloseTo(0, 5);
+  });
+
+  it('toma el minimo sobre todos los centroides de clase', () => {
+    const features = new Float32Array([0, 0, 0]);
+    const near = new Float32Array([1, 0, 0]); // distancia^2 = 1
+    const far = new Float32Array([5, 0, 0]); // distancia^2 = 25
+    expect(mahalanobisDistance(features, [far, near], identity)).toBeCloseTo(1, 5);
+  });
+
+  it('con una covarianza no identidad, escala la distancia por eje segun la inversa', () => {
+    // Covarianza inversa diag(4, 1, 1): el eje 0 pesa 4x mas que los otros.
+    const invCovariance = new Float32Array([4, 0, 0, 0, 1, 0, 0, 0, 1]);
+    const features = new Float32Array([1, 1, 0]);
+    const mean = new Float32Array([0, 0, 0]);
+    // 4*(1)^2 + 1*(1)^2 + 1*(0)^2 = 5
+    expect(mahalanobisDistance(features, [mean], invCovariance)).toBeCloseTo(5, 5);
   });
 });

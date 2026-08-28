@@ -5,11 +5,43 @@ import type { InferenceEngine, InferenceResult } from './InferenceEngine';
 import { preprocessImage } from './preprocessImage';
 import { preprocessImageWithSkia } from './preprocessImageSkia';
 import { measure, recordMetric } from '@/lib/metrics';
-import { isUnrecognized, softmax } from './imageTensor';
+import { isUnrecognized, mahalanobisDistance, softmax } from './imageTensor';
+import { decodeBase64ToFloat32Array } from './base64';
 import labelsData from '../../assets/model/labels.json';
+import oodStatsData from '../../assets/model/ood_stats.json';
 
 const INPUT_SIZE = 224;
 const LABELS = labelsData.labels as DiagnosisClass[];
+
+interface OodStats {
+  featureDim: number;
+  meanPerClass: Float32Array[];
+  invCovariance: Float32Array;
+  threshold: number;
+}
+
+/**
+ * Decodifica `ood_stats.json` (centroides/covarianza en base64 float32) a los
+ * tipados que `mahalanobisDistance` espera.
+ *
+ * @returns {OodStats} Estadisticas OOD listas para usar.
+ */
+function loadOodStats(): OodStats {
+  const featureDim = oodStatsData.feature_dim;
+  const flatMeans = decodeBase64ToFloat32Array(oodStatsData.mean_per_class_b64);
+  const meanPerClass: Float32Array[] = [];
+  for (let c = 0; c < oodStatsData.num_classes; c++) {
+    meanPerClass.push(flatMeans.subarray(c * featureDim, (c + 1) * featureDim));
+  }
+  return {
+    featureDim,
+    meanPerClass,
+    invCovariance: decodeBase64ToFloat32Array(oodStatsData.inv_covariance_b64),
+    threshold: oodStatsData.threshold,
+  };
+}
+
+const OOD_STATS = loadOodStats();
 
 /**
  * Resolves the bundled .tflite model to a `file://` URI.
@@ -81,6 +113,27 @@ export class TFLiteInferenceEngine implements InferenceEngine {
           `${outputSize} salidas.`,
       );
     }
+
+    const featuresOutput = model.outputs[1];
+    if (!featuresOutput) {
+      throw new Error(
+        'TFLiteInferenceEngine: el modelo tiene un solo output (logits). Se esperaba un ' +
+          'segundo output de features pooled para el detector OOD por distancia de Mahalanobis.',
+      );
+    }
+    if (featuresOutput.dataType !== 'float32') {
+      throw new Error(
+        `TFLiteInferenceEngine: se esperaba el segundo output (features) en float32, el modelo ` +
+          `tiene '${featuresOutput.dataType}'.`,
+      );
+    }
+    const featuresLength = featuresOutput.shape[featuresOutput.shape.length - 1];
+    if (featuresLength !== OOD_STATS.featureDim) {
+      throw new Error(
+        `TFLiteInferenceEngine: ood_stats.json tiene feature_dim=${OOD_STATS.featureDim} pero el ` +
+          `modelo declara ${featuresLength} en su segundo output.`,
+      );
+    }
   }
 
   async predict(imageUri: string): Promise<InferenceResult> {
@@ -100,7 +153,7 @@ export class TFLiteInferenceEngine implements InferenceEngine {
     // runSync is synchronous, so this brackets the model call alone - no file IO,
     // no tensor building - which is the number worth comparing across devices.
     const inferenceStartedAt = Date.now();
-    const [outputBuffer] = model.runSync([inputTensor.buffer as ArrayBuffer]);
+    const [logitsBuffer, featuresBuffer] = model.runSync([inputTensor.buffer as ArrayBuffer]);
     recordMetric({
       stage: 'inference',
       durationMs: Date.now() - inferenceStartedAt,
@@ -108,7 +161,8 @@ export class TFLiteInferenceEngine implements InferenceEngine {
     });
     TFLiteInferenceEngine.hasRunOnce = true;
 
-    const probabilities = softmax(new Float32Array(outputBuffer));
+    const probabilities = softmax(new Float32Array(logitsBuffer));
+    const features = new Float32Array(featuresBuffer);
 
     const distribution = {} as Record<DiagnosisClass, number>;
     let bestIndex = 0;
@@ -117,11 +171,14 @@ export class TFLiteInferenceEngine implements InferenceEngine {
       if (probabilities[i] > probabilities[bestIndex]) bestIndex = i;
     }
 
+    const distance = mahalanobisDistance(features, OOD_STATS.meanPerClass, OOD_STATS.invCovariance);
+    const isOutOfDomain = distance > OOD_STATS.threshold;
+
     return {
       label: LABELS[bestIndex],
       confidence: probabilities[bestIndex],
       distribution,
-      isUnrecognized: isUnrecognized(probabilities),
+      isUnrecognized: isUnrecognized(probabilities) || isOutOfDomain,
     };
   }
 }

@@ -75,3 +75,50 @@ export function isUnrecognized(probabilities: Float32Array): boolean {
   }
   return top1 < MIN_CONFIDENCE || top1 - top2 < MIN_MARGIN;
 }
+
+/**
+ * Calcula la distancia de Mahalanobis minima entre `features` y cualquiera de los
+ * centroides de clase, usando una covarianza pooled compartida entre clases.
+ *
+ * Se toma el minimo sobre todas las clases (no solo la predicha por softmax): una
+ * imagen fuera de dominio puede colapsar la confianza en una clase equivocada, asi
+ * que este chequeo no debe depender de que el softmax haya acertado la clase.
+ *
+ * @param {Float32Array} features Vector de features pooled (penultima capa del modelo).
+ * @param {Float32Array[]} meanPerClass Centroide de cada clase, mismo orden que `labels`.
+ * @param {Float32Array} invCovariance Inversa de la covarianza pooled, aplanada row-major
+ *   (`featureDim x featureDim`).
+ * @returns {number} La menor distancia de Mahalanobis al cuadrado entre `features` y
+ *   los centroides de clase.
+ */
+export function mahalanobisDistance(
+  features: Float32Array,
+  meanPerClass: Float32Array[],
+  invCovariance: Float32Array,
+): number {
+  const featureDim = features.length;
+  let minDistance = Infinity;
+
+  for (const mean of meanPerClass) {
+    const diff = new Float64Array(featureDim);
+    for (let i = 0; i < featureDim; i++) {
+      diff[i] = features[i] - mean[i];
+    }
+
+    let distance = 0;
+    for (let i = 0; i < featureDim; i++) {
+      let rowDotDiff = 0;
+      const rowOffset = i * featureDim;
+      for (let j = 0; j < featureDim; j++) {
+        rowDotDiff += invCovariance[rowOffset + j] * diff[j];
+      }
+      distance += diff[i] * rowDotDiff;
+    }
+
+    if (distance < minDistance) {
+      minDistance = distance;
+    }
+  }
+
+  return minDistance;
+}
