@@ -9,7 +9,9 @@ No hay descarga de modelos ni OTA. El `.tflite` es un asset de build:
 ```
 assets/model/
 ├── labels.json                 # contrato: nombre del modelo, image_size, orden de clases
-├── model_int8.tflite           # el modelo ACTIVO (el unico que se embarca)
+├── model_int8.tflite           # el modelo ACTIVO (el unico que se embarca), dos salidas:
+│                                # logits [1,N] + features pooled [1,feature_dim]
+├── ood_stats.json              # centroides/covarianza/umbral Mahalanobis (detector OOD)
 └── candidates/                 # staging, NO se embarcan (no los referencia ningun require)
     ├── efficientnet_b0/model_int8.tflite       (4.7 MB)
     ├── efficientnet_lite0/model_int8.tflite    (3.7 MB)
@@ -36,21 +38,26 @@ Metro resuelve ese `require` **en tiempo de compilacion**. Por eso:
 Hoy es una **copia de archivo**, no una configuracion:
 
 ```bash
-# Copiar SIEMPRE el par desde el mismo directorio de export del pipeline,
-# nunca el .tflite por un lado y el labels.json por otro.
+# Copiar SIEMPRE el trio desde el mismo directorio de export del pipeline
+# (make sync-mobile-model / scripts/pipeline/sync_mobile_model.py hace esto
+# automaticamente, con verificacion de hash del .tflite).
 SRC=../maize-doctor-classifier/outputs-remote/main/<modelo>/<run_id>/export
 cp "$SRC/model_int8.tflite" assets/model/model_int8.tflite
 cp "$SRC/labels.json"       assets/model/labels.json
+cp "$SRC/ood_stats.json"    assets/model/ood_stats.json
 ```
 
-Los `candidates/` sirven para comparar tamanos, pero no traen `labels.json`: copiar de ahi
-obliga a conseguir las labels por separado, que es justo como se produce el desalineo
-descrito abajo.
+Los `candidates/` sirven para comparar tamanos, pero no traen `labels.json` ni
+`ood_stats.json`: copiar de ahi obliga a conseguir esos archivos por separado, que es justo
+como se produce el desalineo descrito abajo.
 
-Actualmente activo: **`efficientnet_lite0`** (3.7 MB). El `.tflite` y su `labels.json` se
-copiaron juntos desde el export autoritativo del pipeline
+Actualmente activo: **`efficientnet_lite0`** (3.7 MB, dos salidas: logits + features pooled
+de 1280 dims). El `.tflite`, su `labels.json` y su `ood_stats.json` se copiaron juntos desde
+el export autoritativo del pipeline
 (`maize-doctor-classifier/outputs-remote/main/efficientnet_lite0/20260812_221429/export/`),
-con sha256 `2969789c…30ce0` verificado contra el origen.
+con sha256 `3a0623cd985a23b954e424e605a2e00c91f8d592e376dfe3149e5820485bc2b3` del `.tflite`
+verificado contra el origen. El umbral Mahalanobis se calibro en el percentil 95 de las
+distancias del split de val (`threshold=10477.04`).
 
 Por que lite0 y no shufflenet, segun `eval_tflite_int8.json` de cada uno (5015 muestras):
 
@@ -77,17 +84,26 @@ no es el que el engine espera:
 | `dataType === 'float32'` | El modelo no es de cuantizacion dinamica (pesos int8, IO float32) |
 | `shape` = 1x3x224x224 | El tamano de entrada no es 224 |
 | `outputs[0]` = `labels.length` | El modelo tiene N clases y `labels.json` declara otra cantidad |
+| `outputs[1]` existe y es float32 | El modelo solo tiene logits (sin features pooled para OOD) |
+| `outputs[1]` = `ood_stats.featureDim` | El `.tflite` y `ood_stats.json` vienen de exports distintos |
 
 Esto detecta un modelo mal copiado, pero **no** detecta que copiaste el `.tflite` correcto y
 olvidaste actualizar `labels.json`: si ambos tienen 9 clases, los nombres quedan desalineados
-en silencio y cada diagnostico sale mal etiquetado. Sincronizar ambos siempre.
+en silencio y cada diagnostico sale mal etiquetado. Sincronizar los tres archivos siempre.
 
 ### Como se sube un modelo nuevo
 
-1. Exportar en `maize-doctor-classifier` (`scripts/pipeline/export.py` genera el `.tflite`
-   y el `labels.json` via `write_labels_json`).
-2. Copiar el `.tflite` a `assets/model/model_int8.tflite` y el `labels.json` junto a el.
-3. Recompilar el APK. **Un modelo nuevo obliga a un release nuevo de la app** — no hay forma
+1. Exportar en `maize-doctor-classifier` con `make export-main EXPORT_FORMATS=tflite
+   QUANTIZE=int8` (`scripts/pipeline/export.py` envuelve el checkpoint en
+   `FeatureExposedModel` para que el `.tflite` tenga dos salidas, y genera `labels.json` via
+   `write_labels_json`). El export a TFLite depende de `litert-torch`, que solo soporta
+   Linux — correr este paso en WSL u otro entorno Linux, no en Windows/macOS nativo.
+2. Calcular `ood_stats.json` sobre el mismo checkpoint con `make compute-ood-stats`
+   (`scripts/pipeline/compute_ood_stats.py`).
+3. Copiar los tres archivos a `assets/model/` con `make sync-mobile-model RUN_DIR=<run>
+   DEST=../maize-doctor-app/assets/model` (verifica el hash del `.tflite` y avisa si falta
+   `ood_stats.json`).
+4. Recompilar el APK. **Un modelo nuevo obliga a un release nuevo de la app** — no hay forma
    de actualizar el modelo sin reinstalar.
 
 ## 2. Actualizaciones de la app desde la API

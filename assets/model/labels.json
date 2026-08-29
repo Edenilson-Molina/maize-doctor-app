@@ -1,4 +1,5 @@
 {
+  "schema_version": 1,
   "model": "efficientnet_lite0",
   "image_size": [
     224,
