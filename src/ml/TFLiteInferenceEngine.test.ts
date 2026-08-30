@@ -15,7 +15,12 @@ import { preprocessImageWithSkia } from './preprocessImageSkia';
 import { TFLiteInferenceEngine } from './TFLiteInferenceEngine';
 import { DIAGNOSIS_CLASSES } from '@/content/diagnosis';
 import labelsData from '../../assets/model/labels.json';
+import oodStatsData from '../../assets/model/ood_stats.json';
 import { clearMetrics, getMetrics } from '@/lib/metrics';
+
+const FEATURES_OUTPUT = { dataType: 'float32', shape: [1, oodStatsData.feature_dim] };
+// fill(1), no ceros: l2Normalize() de un vector cero da NaN (division por norma 0).
+const fakeFeaturesBuffer = () => new Float32Array(oodStatsData.feature_dim).fill(1).buffer;
 
 describe('TFLiteInferenceEngine', () => {
   beforeEach(() => {
@@ -35,8 +40,8 @@ describe('TFLiteInferenceEngine', () => {
     fakeLogits[healthyIndex] = 10;
     (loadTensorflowModel as jest.Mock).mockResolvedValue({
       inputs: [{ dataType: 'float32', shape: [1, 3, 224, 224] }],
-      outputs: [{ dataType: 'float32', shape: [1, labelsData.labels.length] }],
-      runSync: jest.fn(() => [fakeLogits.buffer]),
+      outputs: [{ dataType: 'float32', shape: [1, labelsData.labels.length] }, FEATURES_OUTPUT],
+      runSync: jest.fn(() => [fakeLogits.buffer, fakeFeaturesBuffer()]),
     });
 
     const engine = new TFLiteInferenceEngine();
@@ -50,8 +55,8 @@ describe('TFLiteInferenceEngine', () => {
     const fakeLogits = new Float32Array(labelsData.labels.length).fill(0);
     (loadTensorflowModel as jest.Mock).mockResolvedValue({
       inputs: [{ dataType: 'float32', shape: [1, 3, 224, 224] }],
-      outputs: [{ dataType: 'float32', shape: [1, labelsData.labels.length] }],
-      runSync: jest.fn(() => [fakeLogits.buffer]),
+      outputs: [{ dataType: 'float32', shape: [1, labelsData.labels.length] }, FEATURES_OUTPUT],
+      runSync: jest.fn(() => [fakeLogits.buffer, fakeFeaturesBuffer()]),
     });
 
     const engine = new TFLiteInferenceEngine();
@@ -101,8 +106,8 @@ describe('TFLiteInferenceEngine timing metrics', () => {
     (preprocessImageWithSkia as jest.Mock).mockResolvedValue(new Float32Array(3 * 224 * 224));
     (loadTensorflowModel as jest.Mock).mockResolvedValue({
       inputs: [{ dataType: 'float32', shape: [1, 3, 224, 224] }],
-      outputs: [{ dataType: 'float32', shape: [1, labelsData.labels.length] }],
-      runSync: jest.fn(() => [new Float32Array(labelsData.labels.length).buffer]),
+      outputs: [{ dataType: 'float32', shape: [1, labelsData.labels.length] }, FEATURES_OUTPUT],
+      runSync: jest.fn(() => [new Float32Array(labelsData.labels.length).buffer, fakeFeaturesBuffer()]),
     });
     jest.spyOn(console, 'log').mockImplementation(() => {});
   });

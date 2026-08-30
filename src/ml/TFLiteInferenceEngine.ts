@@ -5,7 +5,7 @@ import type { InferenceEngine, InferenceResult } from './InferenceEngine';
 import { preprocessImage } from './preprocessImage';
 import { preprocessImageWithSkia } from './preprocessImageSkia';
 import { measure, recordMetric } from '@/lib/metrics';
-import { isUnrecognized, mahalanobisDistance, softmax } from './imageTensor';
+import { isUnrecognized, relativeMahalanobisDistance, softmax } from './imageTensor';
 import { decodeBase64ToFloat32Array } from './base64';
 import labelsData from '../../assets/model/labels.json';
 import oodStatsData from '../../assets/model/ood_stats.json';
@@ -15,28 +15,39 @@ const LABELS = labelsData.labels as DiagnosisClass[];
 
 interface OodStats {
   featureDim: number;
+  pcaDim: number;
+  pcaMean: Float32Array;
+  pcaComponents: Float32Array;
   meanPerClass: Float32Array[];
   invCovariance: Float32Array;
+  backgroundMean: Float32Array;
+  backgroundInvCovariance: Float32Array;
   threshold: number;
 }
 
 /**
- * Decodifica `ood_stats.json` (centroides/covarianza en base64 float32) a los
- * tipados que `mahalanobisDistance` espera.
+ * Decodifica `ood_stats.json` (PCA + centroides/covarianzas en base64 float32) a los
+ * tipados que `relativeMahalanobisDistance` espera.
  *
  * @returns {OodStats} Estadisticas OOD listas para usar.
  */
 function loadOodStats(): OodStats {
   const featureDim = oodStatsData.feature_dim;
+  const pcaDim = oodStatsData.pca_dim;
   const flatMeans = decodeBase64ToFloat32Array(oodStatsData.mean_per_class_b64);
   const meanPerClass: Float32Array[] = [];
   for (let c = 0; c < oodStatsData.num_classes; c++) {
-    meanPerClass.push(flatMeans.subarray(c * featureDim, (c + 1) * featureDim));
+    meanPerClass.push(flatMeans.subarray(c * pcaDim, (c + 1) * pcaDim));
   }
   return {
     featureDim,
+    pcaDim,
+    pcaMean: decodeBase64ToFloat32Array(oodStatsData.pca_mean_b64),
+    pcaComponents: decodeBase64ToFloat32Array(oodStatsData.pca_components_b64),
     meanPerClass,
     invCovariance: decodeBase64ToFloat32Array(oodStatsData.inv_covariance_b64),
+    backgroundMean: decodeBase64ToFloat32Array(oodStatsData.background_mean_b64),
+    backgroundInvCovariance: decodeBase64ToFloat32Array(oodStatsData.background_inv_covariance_b64),
     threshold: oodStatsData.threshold,
   };
 }
@@ -171,7 +182,16 @@ export class TFLiteInferenceEngine implements InferenceEngine {
       if (probabilities[i] > probabilities[bestIndex]) bestIndex = i;
     }
 
-    const distance = mahalanobisDistance(features, OOD_STATS.meanPerClass, OOD_STATS.invCovariance);
+    const distance = relativeMahalanobisDistance(
+      features,
+      OOD_STATS.meanPerClass,
+      OOD_STATS.invCovariance,
+      OOD_STATS.backgroundMean,
+      OOD_STATS.backgroundInvCovariance,
+      OOD_STATS.pcaMean,
+      OOD_STATS.pcaComponents,
+      OOD_STATS.pcaDim,
+    );
     const isOutOfDomain = distance > OOD_STATS.threshold;
 
     return {

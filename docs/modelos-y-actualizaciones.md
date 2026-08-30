@@ -56,8 +56,18 @@ de 1280 dims). El `.tflite`, su `labels.json` y su `ood_stats.json` se copiaron 
 el export autoritativo del pipeline
 (`maize-doctor-classifier/outputs-remote/main/efficientnet_lite0/20260812_221429/export/`),
 con sha256 `3a0623cd985a23b954e424e605a2e00c91f8d592e376dfe3149e5820485bc2b3` del `.tflite`
-verificado contra el origen. El umbral Mahalanobis se calibro en el percentil 95 de las
-distancias del split de val (`threshold=10477.04`).
+verificado contra el origen.
+
+`ood_stats.json` va en **schema_version 4**: el score OOD es la Relative Mahalanobis
+Distance (RMD) — distancia a la clase mas cercana menos distancia a una gaussiana de fondo
+sin condicionar por clase — calculada sobre features L2-normalizadas y reducidas por PCA
+(99% de varianza explicada, 1280 -> 186 dims para este modelo) antes de ajustar cualquier
+covarianza. La reduccion PCA es necesaria: el feature vector crudo tiene un espectro de
+varianza muy sesgado, y sin reducirlo antes las dimensiones de ruido dominan la distancia.
+El umbral se calibra en el percentil 95 del score RMD sobre el split de val
+(`threshold=31.47`). Metodologia completa y validacion (sondas sinteticas + fotos reales de
+cada clase + una foto real que no es hoja, todas correctamente clasificadas) en
+[`maize-doctor-classifier/docs/es/deep-learning/ood-detection.md`](../../maize-doctor-classifier/docs/es/deep-learning/ood-detection.md).
 
 Por que lite0 y no shufflenet, segun `eval_tflite_int8.json` de cada uno (5015 muestras):
 
