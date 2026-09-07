@@ -77,8 +77,8 @@ export function ScanResult({ route, navigation }: Props) {
             No se pudo identificar
           </Text>
           <Text className="font-inter text-body-md text-on-surface-variant mt-2 text-center">
-            La imagen no parece corresponder a una hoja de maíz reconocible. Intenta tomar la foto
-            con mejor luz, enfocando de cerca una sola hoja.
+            La imagen no parece corresponder a una hoja de maíz reconocible. Asegúrate de enfocar
+            de cerca una sola hoja llenando el marco, sin mostrar suelo ni sombras fuertes.
           </Text>
         </View>
 

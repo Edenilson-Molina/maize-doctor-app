@@ -1,4 +1,4 @@
-import { View } from 'react-native';
+import { View, Text } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -37,6 +37,11 @@ export function LeafOverlay() {
       className="items-center justify-center"
       style={{ width: LEAF_WIDTH, height: LEAF_HEIGHT }}
     >
+      <View className="absolute -top-8 px-3 py-1 rounded-full bg-black/60 border border-white/20">
+        <Text className="font-jetbrains text-[11px] text-white/90 tracking-wider">
+          Llene el marco con la hoja
+        </Text>
+      </View>
       <View
         style={{
           width: LEAF_WIDTH,

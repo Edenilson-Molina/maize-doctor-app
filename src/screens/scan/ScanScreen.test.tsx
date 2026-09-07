@@ -8,7 +8,9 @@ import { clearMetrics, getMetrics } from '@/lib/metrics';
 
 const mockRequestPermission = jest.fn();
 let mockPermission: { granted: boolean } | null = { granted: true };
-const mockTakePictureAsync = jest.fn().mockResolvedValue({ uri: 'file:///cache/photo.jpg' });
+const mockTakePictureAsync = jest
+  .fn()
+  .mockResolvedValue({ uri: 'file:///cache/photo.jpg', width: 3000, height: 4000 });
 
 jest.mock('expo-camera', () => {
   const { View: RNView } = require('react-native');
@@ -21,6 +23,11 @@ jest.mock('expo-camera', () => {
     useCameraPermissions: () => [mockPermission, mockRequestPermission],
   };
 });
+
+const mockCropPhotoToOverlay = jest.fn().mockImplementation((uri) => Promise.resolve(uri));
+jest.mock('@/utils/cropOverlay', () => ({
+  cropPhotoToOverlay: (...args: unknown[]) => mockCropPhotoToOverlay(...args),
+}));
 
 jest.mock('expo-image-picker', () => ({
   launchImageLibraryAsync: jest.fn().mockResolvedValue({ canceled: true, assets: [] }),

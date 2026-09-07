@@ -10,6 +10,7 @@ import { createScan, updateScanResult } from '@/data/queries/scanQueries';
 import { getInferenceEngine } from '@/ml';
 import { dumpMetrics, measure } from '@/lib/metrics';
 import { logger } from '@/lib/logger';
+import { cropPhotoToOverlay } from '@/utils/cropOverlay';
 import type { ScanStackParamList } from '@/navigation/types';
 
 type Props = NativeStackScreenProps<ScanStackParamList, 'ScanCamera'>;
@@ -20,6 +21,10 @@ export function ScanScreen({ navigation }: Props) {
   const [flash, setFlash] = useState<FlashMode>('off');
   const [isSaving, setIsSaving] = useState(false);
   const [scanError, setScanError] = useState(false);
+  const [viewDimensions, setViewDimensions] = useState<{ width: number; height: number }>({
+    width: 0,
+    height: 0,
+  });
   const cameraRef = useRef<CameraView>(null);
 
   async function persistScan(imageUri: string) {
@@ -88,7 +93,21 @@ export function ScanScreen({ navigation }: Props) {
     if (!cameraRef.current || isSaving) return;
     const photo = await cameraRef.current.takePictureAsync();
     if (photo?.uri) {
-      await persistScan(photo.uri);
+      let imageUri = photo.uri;
+      if (photo.width && photo.height) {
+        try {
+          imageUri = await cropPhotoToOverlay(
+            photo.uri,
+            photo.width,
+            photo.height,
+            viewDimensions.width,
+            viewDimensions.height,
+          );
+        } catch (error) {
+          logger.warn('No se pudo recortar la foto al marco, usando captura completa', error);
+        }
+      }
+      await persistScan(imageUri);
     }
   }
 
@@ -96,6 +115,8 @@ export function ScanScreen({ navigation }: Props) {
     if (isSaving) return;
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
       quality: 1,
     });
     if (!result.canceled && result.assets[0]) {
@@ -131,9 +152,30 @@ export function ScanScreen({ navigation }: Props) {
 
   return (
     <View className="flex-1 bg-black">
-      <CameraView ref={cameraRef} style={{ flex: 1 }} facing={facing} flash={flash}>
+      <CameraView
+        ref={cameraRef}
+        style={{ flex: 1 }}
+        facing={facing}
+        flash={flash}
+        onLayout={(e) => {
+          const { width, height } = e.nativeEvent.layout;
+          setViewDimensions({ width, height });
+        }}
+      >
         <View className="flex-1 items-center justify-center">
           <LeafOverlay />
+        </View>
+
+        {/* Banner superior de instrucciones */}
+        <View className="absolute top-6 left-container-padding right-28">
+          <View className="bg-black/60 px-4 py-2.5 rounded-xl border border-white/15">
+            <Text className="font-hanken-semibold text-label-md text-white">
+              Primer plano de una hoja
+            </Text>
+            <Text className="font-inter text-[12px] text-white/80 mt-0.5">
+              Acérquese a 20–30 cm y llene el marco. Evite suelo o sombras.
+            </Text>
+          </View>
         </View>
 
         <View className="absolute top-6 right-container-padding gap-stack-sm">
@@ -151,14 +193,14 @@ export function ScanScreen({ navigation }: Props) {
           </Pressable>
         </View>
 
-        <View className="absolute bottom-32 left-0 right-0 items-center">
-          <View className="bg-black/60 px-6 py-2 rounded-full border border-white/10">
-            <Text className="font-label-md text-label-md text-white">
+        <View className="absolute bottom-32 left-0 right-0 items-center px-container-padding">
+          <View className="bg-black/70 px-5 py-2 rounded-full border border-white/10">
+            <Text className="font-label-md text-label-md text-white text-center">
               {isSaving
                 ? 'Analizando hoja…'
                 : scanError
                   ? 'No se pudo analizar la foto. Intente de nuevo.'
-                  : 'Coloque la hoja en el centro'}
+                  : 'Llene el marco guía con la hoja'}
             </Text>
           </View>
         </View>
