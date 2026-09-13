@@ -39,12 +39,18 @@ describe('preprocessImageWithSkia', () => {
       dispose: mockDispose,
     });
     mockReadPixels.mockReturnValue(buildPixels(SIZE));
-    mockMakeImageSnapshot.mockReturnValue({ readPixels: mockReadPixels, dispose: mockDispose });
-    mockMakeOffscreen.mockReturnValue({
+    mockMakeOffscreen.mockImplementation((w: number, h: number) => ({
       getCanvas: () => ({ drawImageRectOptions: mockDrawImageRectOptions }),
-      makeImageSnapshot: mockMakeImageSnapshot,
+      makeImageSnapshot: () =>
+        mockMakeImageSnapshot({
+          width: () => w,
+          height: () => h,
+          readPixels: mockReadPixels,
+          dispose: mockDispose,
+        }),
       dispose: mockDispose,
-    });
+    }));
+    mockMakeImageSnapshot.mockImplementation((img: unknown) => img);
   });
 
   it('decodes and scales natively without writing an intermediate file', async () => {
@@ -74,13 +80,46 @@ describe('preprocessImageWithSkia', () => {
   it('stretches the source to a square, matching the training pipeline', async () => {
     await preprocessImageWithSkia('file:///leaf.jpg', SIZE);
 
-    const [src, dst] = mockDrawImageRectOptions.mock.calls[0].slice(1);
-    expect(src).toEqual({ x: 0, y: 0, width: 400, height: 300 });
-    expect(dst).toEqual({ x: 0, y: 0, width: SIZE, height: SIZE });
+    const calls = mockDrawImageRectOptions.mock.calls;
+    const [firstSrc] = calls[0].slice(1);
+    const [, lastDst] = calls[calls.length - 1].slice(1);
+    expect(firstSrc).toEqual({ x: 0, y: 0, width: 400, height: 300 });
+    expect(lastDst).toEqual({ x: 0, y: 0, width: SIZE, height: SIZE });
+  });
+
+  it('halves the image in steps instead of jumping straight to the target', async () => {
+    mockMakeImageFromEncoded.mockReturnValue({
+      width: () => 1792,
+      height: () => 1792,
+      dispose: mockDispose,
+    });
+
+    await preprocessImageWithSkia('file:///leaf.jpg', 224);
+
+    const destinations = mockDrawImageRectOptions.mock.calls.map((c) => c[2].width);
+    expect(destinations).toEqual([896, 448, 224, 224]);
+  });
+
+  it('scales in a single step when the source is already close to the target', async () => {
+    mockMakeImageFromEncoded.mockReturnValue({
+      width: () => 300,
+      height: () => 300,
+      dispose: mockDispose,
+    });
+
+    await preprocessImageWithSkia('file:///leaf.jpg', 224);
+
+    expect(mockDrawImageRectOptions).toHaveBeenCalledTimes(1);
   });
 
   it('releases every native resource it allocates', async () => {
-    await preprocessImageWithSkia('file:///leaf.jpg', SIZE);
+    mockMakeImageFromEncoded.mockReturnValue({
+      width: () => 300,
+      height: () => 300,
+      dispose: mockDispose,
+    });
+
+    await preprocessImageWithSkia('file:///leaf.jpg', 224);
 
     // data + image + snapshot + surface
     expect(mockDispose).toHaveBeenCalledTimes(4);
