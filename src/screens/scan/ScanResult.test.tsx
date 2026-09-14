@@ -1,6 +1,7 @@
 import { render } from '@testing-library/react-native';
 import { ScanResult } from './ScanResult';
 import { DIAGNOSIS_CLASSES, DIAGNOSIS_MAP, type DiagnosisClass } from '@/content/diagnosis';
+import { SEVERITY_DISCLAIMER, SEVERITY_GUIDE } from '@/content/severity';
 import type { ScanStackParamList } from '@/navigation/types';
 
 type ScanResultParams = ScanStackParamList['ScanResult'];
@@ -84,6 +85,23 @@ describe('ScanResult', () => {
 
     expect(getByText('No se pudo identificar')).toBeTruthy();
     expect(queryByText(DIAGNOSIS_MAP.healthy.description)).toBeNull();
+  });
+
+  it('shows the severity self-assessment guide for the diagnosed class', async () => {
+    const { findByText } = await renderResult(buildParams('common_rust'));
+
+    expect(await findByText('¿Qué tan avanzado está?')).toBeTruthy();
+    expect(await findByText(SEVERITY_DISCLAIMER)).toBeTruthy();
+    for (const level of SEVERITY_GUIDE.common_rust.levels) {
+      expect(await findByText(level.title)).toBeTruthy();
+    }
+  });
+
+  it('hides the severity guide when the image was not recognized', async () => {
+    const params = { ...buildParams('common_rust'), isUnrecognized: true };
+    const { queryByText } = await renderResult(params);
+
+    expect(queryByText('¿Qué tan avanzado está?')).toBeNull();
   });
 
   it('shows N/D for missing environmental readings', async () => {

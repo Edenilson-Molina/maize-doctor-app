@@ -12,6 +12,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { DIAGNOSIS_CLASSES, DIAGNOSIS_MAP, type DiagnosisClass } from '@/content/diagnosis';
 import { AppDialog, type DialogTone } from '@/components/AppDialog';
 import { ChipPicker } from '@/components/ChipPicker';
+import { SeverityGuide } from '@/components/SeverityGuide';
 import { Icon } from '@/components/Icon';
 import { getScanById } from '@/data/queries/scanQueries';
 import { createCorrection, observeCorrectionsForScan } from '@/data/queries/correctionQueries';
@@ -36,7 +37,7 @@ export function ScanDetail({ route }: Props) {
   const [observedLabel, setObservedLabel] = useState<DiagnosisClass | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dialog, setDialog] = useState<{ title: string; body: string; tone: DialogTone } | null>(
-    null
+    null,
   );
 
   useEffect(() => {
@@ -123,6 +124,8 @@ export function ScanDetail({ route }: Props) {
           unit="°C"
         />
       </View>
+
+      <SeverityGuide label={scan.label ?? 'healthy'} />
 
       {!latestCorrection ? (
         <View className="bg-secondary-container/20 rounded-xl p-stack-sm border border-secondary-container mt-stack-md gap-stack-sm">

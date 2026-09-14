@@ -41,6 +41,14 @@ Metro resuelve el `require` del `.tflite` en tiempo de compilación, así que el
 
 Antes de mostrar un diagnóstico, `TFLiteInferenceEngine` calcula la **distancia de Mahalanobis relativa (RMD)** entre las features pooled de la imagen y los centroides por clase almacenados en `ood_stats.json`. Si la distancia supera el umbral calibrado, el resultado se marca `isUnrecognized` y la app indica que no reconoció la imagen en lugar de forzar una etiqueta. Así se evita diagnosticar fotos que no son hojas de maíz.
 
+## Guía de severidad
+
+El modelo dice **qué** tiene la hoja, no **cuánto**: sus salidas son una clase y una confianza, y ninguna mide área foliar afectada. No se entrenó un modelo de niveles de daño porque las imágenes consolidadas traen una sola etiqueta por imagen, sin anotación de severidad, y producirla exige un fitopatólogo aplicando la escala diagramática propia de cada patógeno.
+
+Para cubrir ese vacío, debajo de cada resultado de inferencia la app despliega los niveles de severidad de la clase diagnosticada, traducidos a lenguaje llano, y el agricultor compara su hoja contra las descripciones. La app declara explícitamente que no mide el nivel; el que la persona elija no se guarda ni se sincroniza.
+
+Las ocho clases de daño usan tres niveles ascendentes con acento verde, ámbar y rojo; `healthy` usa los dos estados de monitoreo del catálogo. El contenido es una reescritura del *Catálogo Científico de Escalas de Severidad y Manejo Integrado (MIP)* del repositorio del clasificador, que homologa las escalas de CIMMYT, Embrapa, Iowa State University Extension e IPNI. Vive en `src/content/severity.ts` y se renderiza con `src/components/SeverityGuide.tsx`, en `ScanResult` y en `ScanDetail`. Detalle completo en [docs/guia-de-severidad.md](docs/guia-de-severidad.md).
+
 ## Stack tecnológico
 
 - **React Native** 0.86 + **Expo** SDK 57 (nueva arquitectura habilitada)
@@ -147,7 +155,7 @@ src/
 ├── api/            # Cliente de maize-doctor-api, cola de sync, chequeo de versión
 ├── auth/           # Autenticación local (SecureStore)
 ├── components/     # Componentes reutilizables (Icon, Logo, FormInput, TopAppBar, ScanThumbnail)
-├── content/        # Taxonomía de diagnóstico y recomendaciones agronómicas
+├── content/        # Taxonomía de diagnóstico, recomendaciones agronómicas y guía de severidad
 ├── data/           # WatermelonDB (schema, modelos, queries, mock data)
 ├── fonts/          # Shims de carga de tipografías
 ├── hooks/          # useAppUpdate
@@ -161,6 +169,7 @@ src/
 
 ## Documentación
 
+- [docs/guia-de-severidad.md](docs/guia-de-severidad.md) — por qué no hay modelo de niveles de daño y cómo lo compensa la app.
 - [docs/build-produccion.md](docs/build-produccion.md) — APK de release y firma.
 - [docs/modelos-y-actualizaciones.md](docs/modelos-y-actualizaciones.md) — cómo se embarca y se reemplaza el modelo.
 - [docs/secrets-de-ci.md](docs/secrets-de-ci.md) — secretos del workflow de release.

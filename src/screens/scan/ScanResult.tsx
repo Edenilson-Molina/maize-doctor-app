@@ -2,6 +2,7 @@ import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { DIAGNOSIS_MAP, type DiagnosisClass } from '@/content/diagnosis';
 import { ConfidenceDonut } from '@/components/ConfidenceDonut';
+import { SeverityGuide } from '@/components/SeverityGuide';
 import { Icon } from '@/components/Icon';
 import type { ScanStackParamList } from '@/navigation/types';
 
@@ -77,8 +78,8 @@ export function ScanResult({ route, navigation }: Props) {
             No se pudo identificar
           </Text>
           <Text className="font-inter text-body-md text-on-surface-variant mt-2 text-center">
-            La imagen no parece corresponder a una hoja de maíz reconocible. Asegúrate de enfocar
-            de cerca una sola hoja llenando el marco, sin mostrar suelo ni sombras fuertes.
+            La imagen no parece corresponder a una hoja de maíz reconocible. Asegúrate de enfocar de
+            cerca una sola hoja llenando el marco, sin mostrar suelo ni sombras fuertes.
           </Text>
         </View>
 
@@ -178,6 +179,8 @@ export function ScanResult({ route, navigation }: Props) {
           </View>
         ))}
       </View>
+
+      <SeverityGuide label={label} />
 
       <Pressable
         onPress={() => navigation.goBack()}

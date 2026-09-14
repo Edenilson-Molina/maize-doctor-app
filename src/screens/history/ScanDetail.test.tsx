@@ -1,6 +1,7 @@
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 import { ScanDetail } from './ScanDetail';
+import { SEVERITY_GUIDE } from '@/content/severity';
 
 const mockGetScanById = jest.fn();
 const mockCreateCorrection = jest.fn().mockResolvedValue(undefined);
@@ -64,6 +65,15 @@ describe('ScanDetail', () => {
       ),
     ).toBeTruthy();
     expect(await findAllByText('N/D')).toHaveLength(2);
+  });
+
+  it('shows the severity self-assessment guide for the stored diagnosis', async () => {
+    const { findByText } = await renderScanDetail();
+
+    expect(await findByText('¿Qué tan avanzado está?')).toBeTruthy();
+    for (const level of SEVERITY_GUIDE.common_rust.levels) {
+      expect(await findByText(level.title)).toBeTruthy();
+    }
   });
 
   it('submits feedback with the selected observed label and note', async () => {
