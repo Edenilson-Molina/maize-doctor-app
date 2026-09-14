@@ -67,7 +67,7 @@ varianza muy sesgado, y sin reducirlo antes las dimensiones de ruido dominan la 
 El umbral se calibra en el percentil 95 del score RMD sobre el split de val
 (`threshold=31.47`). Metodologia completa y validacion (sondas sinteticas + fotos reales de
 cada clase + una foto real que no es hoja, todas correctamente clasificadas) en
-[`maize-doctor-classifier/docs/es/deep-learning/ood-detection.md`](../../maize-doctor-classifier/docs/es/deep-learning/ood-detection.md).
+[`maize-doctor-classifier/docs/es/deep-learning/ood-detection.md`](https://github.com/daiv05/maize-doctor-classifier/blob/master/docs/es/deep-learning/ood-detection.md).
 
 Por que lite0 y no shufflenet, segun `eval_tflite_int8.json` de cada uno (5015 muestras):
 

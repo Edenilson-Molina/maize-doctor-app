@@ -80,5 +80,6 @@
       "\\.tflite$": "<rootDir>/__mocks__/fileMock.js"
     }
   },
-  "private": true
+  "private": true,
+  "license": "MIT"
 }
