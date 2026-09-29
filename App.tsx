@@ -38,9 +38,16 @@ export default function App() {
     JetBrainsMono_500Medium,
   });
 
-  const onLayoutRootView = useCallback(async () => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      SplashScreen.hideAsync().catch(() => {});
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
     if (fontsLoaded || fontError) {
-      await SplashScreen.hideAsync();
+      SplashScreen.hideAsync().catch(() => {});
     }
   }, [fontsLoaded, fontError]);
 
@@ -51,9 +58,9 @@ export default function App() {
     return unsubscribe;
   }, []);
 
-  if (!fontsLoaded && !fontError) {
-    return null;
-  }
+  const onLayoutRootView = useCallback(async () => {
+    await SplashScreen.hideAsync().catch(() => {});
+  }, []);
 
   return (
     <SafeAreaProvider>

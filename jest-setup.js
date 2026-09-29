@@ -12,3 +12,51 @@ jest.mock('@shopify/react-native-skia', () => ({
   FilterMode: { Linear: 1 },
   MipmapMode: { None: 0 },
 }));
+
+jest.mock('expo-location', () => ({
+  requestForegroundPermissionsAsync: jest.fn(() =>
+    Promise.resolve({ status: 'granted', granted: true })
+  ),
+  getForegroundPermissionsAsync: jest.fn(() =>
+    Promise.resolve({ status: 'granted', granted: true })
+  ),
+  getCurrentPositionAsync: jest.fn(() =>
+    Promise.resolve({
+      coords: { latitude: 13.69, longitude: -89.19, accuracy: 5 },
+    })
+  ),
+  getLastKnownPositionAsync: jest.fn(() =>
+    Promise.resolve({
+      coords: { latitude: 13.69, longitude: -89.19, accuracy: 5 },
+    })
+  ),
+  Accuracy: {
+    Lowest: 1,
+    Low: 2,
+    Balanced: 3,
+    High: 4,
+    Highest: 5,
+    BestForNavigation: 6,
+  },
+}));
+
+jest.mock('react-native-maps', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  const MockMapView = React.forwardRef((props, ref) => {
+    return React.createElement(View, { ...props, ref, testID: props.testID || 'map-view' });
+  });
+  const MockMarker = (props) =>
+    React.createElement(View, { ...props, testID: props.testID || 'map-marker' });
+  const MockCallout = (props) =>
+    React.createElement(View, { ...props, testID: props.testID || 'map-callout' });
+
+  return {
+    __esModule: true,
+    default: MockMapView,
+    Marker: MockMarker,
+    Callout: MockCallout,
+    PROVIDER_DEFAULT: 'default',
+    PROVIDER_GOOGLE: 'google',
+  };
+});

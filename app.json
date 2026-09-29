@@ -9,7 +9,10 @@
     "scheme": "doctormaiz",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.doctormaiz.app"
+      "bundleIdentifier": "com.doctormaiz.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "DoctorMaiz necesita tu ubicación para registrar dónde se tomaron los escaneos en el campo."
+      }
     },
     "android": {
       "package": "com.doctormaiz.app",
@@ -19,6 +22,15 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyDummyDevKeyForDoctorMaizApp12345678"
+        }
       }
     },
     "newArchEnabled": true,
@@ -34,6 +46,12 @@
         "expo-image-picker",
         {
           "photosPermission": "DoctorMaiz necesita acceso a tus fotos para analizar una imagen existente."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "DoctorMaiz necesita tu ubicación para registrar dónde se tomaron los escaneos en el campo."
         }
       ],
       "react-native-fast-tflite",

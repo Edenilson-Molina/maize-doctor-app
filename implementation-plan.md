@@ -114,7 +114,7 @@ Si el backend tampoco está listo, `AuthService` y `SyncClient` siguen el mismo 
 | Manual en dispositivo | Flujo completo cámara → captura → inferencia (mock) → guardar → historial → corrección, en modo avión | `expo run:android` en equipo real | No |
 | Validación del modelo | Precisión/latencia/memoria del `.tflite` real en dispositivo objetivo | Manual, con set de fotos de referencia | Sí (Fase 8b, aislada) |
 
-Con esto, las Fases 0–7 y 9 quedan completamente desbloqueadas y probadas sin esperar a la integración del modelo real; solo la Fase 8b depende de que la Fase 8a (conversión de `best.pth`) haya entregado el `.tflite`.
+Con esto, las Fases 0–7b y 9 quedan completamente desbloqueadas y probadas sin esperar a la integración del modelo real; solo la Fase 8b depende de que la Fase 8a (conversión de `best.pth`) haya entregado el `.tflite`.
 
 ---
 
@@ -240,6 +240,43 @@ Con esto, las Fases 0–7 y 9 quedan completamente desbloqueadas y probadas sin 
 - [x] Funciones de query nuevas en cada módulo: `getUnsyncedScans`/`markScanSynced` (scanQueries), `getUnsyncedCorrections`/`markCorrectionSynced` (correctionQueries), `getUnsyncedContributions`/`markContributionSynced` (datasetContributionQueries).
 - [x] `src/lib/logger.ts`: utilidad de logging ligera usada por `syncQueue` para advertencias de sync fallidos (sin crash).
 - [x] **Prueba de salida:** `FastApiSyncClient.test.ts` (mock de `fetch`), `MockSyncClient.test.ts`, `syncQueue.test.ts` (mock de NetInfo + verificación de flush al reconectar), tests de queries de sync en `scanQueries.test.ts`, `correctionQueries.test.ts`, `datasetContributionQueries.test.ts`, `logger.test.ts`. Manual: alternar modo avión pendiente de verificación en dispositivo real.
+
+### Fase 7b — Cobertura del Campo: Geolocalización GPS y Mapa Satelital ✅ COMPLETADA
+**Objetivo:** capturar automáticamente las coordenadas geográficas (latitud/longitud) en cada escaneo y sustituir el placeholder de la pantalla principal por un mapa satelital interactivo con marcadores coloreados por severidad y navegación al detalle del escaneo.
+
+- [x] **1. Dependencias y configuración nativa:**
+  - [x] Instalar `expo-location` y `react-native-maps`.
+  - [x] Configurar permisos en `app.json` (`ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`, `NSLocationWhenInUseUsageDescription`).
+  - [x] Configurar Google Maps API Key para Android en `app.json` (`android.config.googleMaps.apiKey`).
+  - [x] Mocks para `expo-location` y `react-native-maps` agregados a `jest-setup.js`.
+- [x] **2. Captura de coordenadas en el escaneo:**
+  - [x] `src/utils/location.ts`: utilidades `getLocationCoordinates` y `extractExifCoordinates`.
+  - [x] `src/screens/scan/ScanScreen.tsx`: solicitar permisos de ubicación en primer plano de forma no intrusiva.
+  - [x] Obtener ubicación actual (`getCurrentPositionAsync` con timeout balanceado y fallback a `getLastKnownPositionAsync`) concurrentemente con el disparo sin frenar la inferencia offline.
+  - [x] En captura desde galería (`handlePickFromGallery`), extraer geolocalización desde metadatos EXIF si existen, o usar la posición actual del dispositivo.
+  - [x] Persistir `lat` y `lon` en `createScan()` (tabla `scans` de WatermelonDB).
+  - [x] Propagar `lat` y `lon` a los parámetros de navegación hacia `ScanResult` y mostrar en `ScanDetail`.
+- [x] **3. Componente de Mapa en HomeScreen (`FieldCoverageMap.tsx`):**
+  - [x] Crear `src/components/FieldCoverageMap.tsx`: mapa interactivo con vista satelital/híbrida (`mapType="satellite"` / `"hybrid"`).
+  - [x] Cargar escaneos geolocalizados desde WatermelonDB (`lat !== null && lon !== null`) y datos mock para fallback en Expo Go / desarrollo.
+  - [x] Centrado automático de región (`initialRegion`) calculada sobre los escaneos del usuario o posición GPS actual (fallback a región de referencia en El Salvador).
+  - [x] Marcadores personalizados (`Marker`) coloreados por severidad según `DIAGNOSIS_MAP`:
+    - 🟢 Verde: sano (`healthy`).
+    - 🟡 Amarillo/Naranja: deficiencias nutricionales / severidad moderada.
+    - 🔴 Rojo: plagas y enfermedades críticas (`fall_armyworm`, `lethal_necrosis`, etc.).
+  - [x] Efecto de pulso / distinción visual en el escaneo más reciente (según diseño Stitch).
+  - [x] Callout / tarjeta flotante al presionar un marcador: muestra miniatura, diagnóstico, porcentaje de confianza y botón para abrir `ScanDetail`.
+  - [x] Contador dinámico flotante: "Sector: {N} escaneos geolocalizados".
+  - [x] Manejo de estado vacío / sin GPS: UI amigable cuando no existan escaneos con coordenadas.
+- [x] **4. Resiliencia Offline y Casos Borde:**
+  - [x] Si no hay señal GPS o se deniega el permiso, el escaneo se guarda con `lat: null, lon: null` sin interrumpir la inferencia ni alertar errores molestos.
+  - [x] Estado fallback en caso de no poder descargar tiles satelitales en áreas remotas sin internet.
+- [x] **5. Pruebas y QA:**
+  - [x] Configurar mocks de `expo-location` y `react-native-maps` en `jest-setup.js`.
+  - [x] Unit tests en `scanQueries.test.ts` para verificar la persistencia y filtrado de escaneos por coordenadas.
+  - [x] Integration tests en `ScanScreen.test.tsx` verificando el paso de coordenadas a `createScan`.
+  - [x] Component tests para `FieldCoverageMap` / `HomeScreen` verificando renderizado de marcadores, cálculo de región y callouts.
+  - [x] **Prueba de salida:** suite completa de Jest pasando en verde sin advertencias nativas (46 suites, 349 tests passing).
 
 ### Fase 8a — Conversión y Cuantización del Modelo (`best.pth` → `model.tflite`)
 **Objetivo:** producir el artefacto `.tflite` desplegable a partir del checkpoint EfficientNet-B0 ya entrenado. Trabajo Python/ML, independiente del resto del roadmap — **puede arrancar ya, en paralelo con las Fases 0–7**.

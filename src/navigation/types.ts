@@ -17,12 +17,15 @@ export type ScanStackParamList = {
     temperature: number | null;
     humidity: number | null;
     createdAt: number;
+    lat?: number | null;
+    lon?: number | null;
   };
 };
 
 export type HomeStackParamList = {
   HomeMain: undefined;
   Contribute: undefined;
+  ScanDetail: { scanId: string };
 };
 
 export type HistoryStackParamList = {

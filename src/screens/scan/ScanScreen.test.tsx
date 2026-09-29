@@ -124,6 +124,8 @@ describe('ScanScreen', () => {
       expect(mockCreateScan).toHaveBeenCalledWith({
         imageUri: 'file:///cache/photo.jpg',
         label: null,
+        lat: 13.69,
+        lon: -89.19,
       }),
     );
     await waitFor(() =>
@@ -139,6 +141,37 @@ describe('ScanScreen', () => {
       ),
     );
 
+    expect(await findByText('ScanResult: common_rust')).toBeTruthy();
+  });
+
+  it('picks a photo from gallery with EXIF coordinates and runs inference', async () => {
+    const ImagePicker = require('expo-image-picker');
+    ImagePicker.launchImageLibraryAsync.mockResolvedValueOnce({
+      canceled: false,
+      assets: [
+        {
+          uri: 'file:///gallery/leaf.jpg',
+          exif: {
+            GPSLatitude: 13.75,
+            GPSLongitude: 89.25,
+            GPSLatitudeRef: 'N',
+            GPSLongitudeRef: 'W',
+          },
+        },
+      ],
+    });
+
+    const { getByLabelText, findByText } = await renderScanScreen();
+    fireEvent.press(getByLabelText('Elegir de galería'));
+
+    await waitFor(() =>
+      expect(mockCreateScan).toHaveBeenCalledWith({
+        imageUri: 'file:///gallery/leaf.jpg',
+        label: null,
+        lat: 13.75,
+        lon: -89.25,
+      }),
+    );
     expect(await findByText('ScanResult: common_rust')).toBeTruthy();
   });
 
