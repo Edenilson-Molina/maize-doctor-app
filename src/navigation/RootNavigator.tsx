@@ -73,6 +73,13 @@ function HomeNavigator() {
           header: () => <TopAppBar onBack={() => navigation.goBack()} />,
         })}
       />
+      <HomeStack.Screen
+        name="ScanDetail"
+        component={ScanDetail}
+        options={({ navigation }) => ({
+          header: () => <TopAppBar onBack={() => navigation.goBack()} />,
+        })}
+      />
     </HomeStack.Navigator>
   );
 }

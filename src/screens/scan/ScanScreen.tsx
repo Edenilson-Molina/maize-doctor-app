@@ -11,7 +11,9 @@ import { getInferenceEngine } from '@/ml';
 import { dumpMetrics, measure } from '@/lib/metrics';
 import { logger } from '@/lib/logger';
 import { cropPhotoToOverlay } from '@/utils/cropOverlay';
+import { getLocationCoordinates, extractExifCoordinates, type Coordinates } from '@/utils/location';
 import type { ScanStackParamList } from '@/navigation/types';
+import { getLatestWeather } from '@/services/weather/weatherService';
 
 type Props = NativeStackScreenProps<ScanStackParamList, 'ScanCamera'>;
 
@@ -27,11 +29,11 @@ export function ScanScreen({ navigation }: Props) {
   });
   const cameraRef = useRef<CameraView>(null);
 
-  async function persistScan(imageUri: string) {
+  async function persistScan(imageUri: string, coords?: Coordinates | null) {
     setIsSaving(true);
     setScanError(false);
     try {
-      await measure('pipeline', () => runScanPipeline(imageUri));
+      await measure('pipeline', () => runScanPipeline(imageUri, coords));
     } catch {
       // runScanPipeline already surfaced the error; measure only re-throws it.
     } finally {
@@ -49,10 +51,22 @@ export function ScanScreen({ navigation }: Props) {
    * timed as one 'pipeline' measurement.
    *
    * @param {string} imageUri Source image to analyse.
+   * @param {Coordinates | null} [coords] Optional GPS coordinates where photo was captured.
    * @returns {Promise<void>} Resolves once the scan is stored and navigation happened.
    */
-  async function runScanPipeline(imageUri: string) {
-    const scan = await createScan({ imageUri, label: null });
+  async function runScanPipeline(imageUri: string, coords?: Coordinates | null) {
+    const env = getLatestWeather();
+    const envTemp = env.source !== 'offline_default' ? env.temperature : null;
+    const envHumidity = env.source !== 'offline_default' ? env.humidity : null;
+
+    const scan = await createScan({
+      imageUri,
+      label: null,
+      lat: coords?.latitude ?? null,
+      lon: coords?.longitude ?? null,
+      ...(envTemp !== null ? { temperature: envTemp } : {}),
+      ...(envHumidity !== null ? { humidity: envHumidity } : {}),
+    });
 
     // Storing the photo re-encodes a full-resolution JPEG and dominated the pipeline,
     // yet the model never reads that file - it works from the camera's own capture. So
@@ -72,9 +86,11 @@ export function ScanScreen({ navigation }: Props) {
         confidence: result.confidence,
         distribution: result.distribution,
         isUnrecognized: result.isUnrecognized,
-        temperature: null,
-        humidity: null,
+        temperature: envTemp,
+        humidity: envHumidity,
         createdAt: Date.now(),
+        lat: coords?.latitude ?? null,
+        lon: coords?.longitude ?? null,
       });
 
       // Both fields land in one write. Updating them separately raced: two concurrent
@@ -91,6 +107,8 @@ export function ScanScreen({ navigation }: Props) {
 
   async function handleCapture() {
     if (!cameraRef.current || isSaving) return;
+    // Launch GPS retrieval concurrently with photo capture to minimize perceived latency
+    const locationPromise = getLocationCoordinates();
     const photo = await cameraRef.current.takePictureAsync();
     if (photo?.uri) {
       let imageUri = photo.uri;
@@ -107,7 +125,8 @@ export function ScanScreen({ navigation }: Props) {
           logger.warn('No se pudo recortar la foto al marco, usando captura completa', error);
         }
       }
-      await persistScan(imageUri);
+      const coords = await locationPromise;
+      await persistScan(imageUri, coords);
     }
   }
 
@@ -118,9 +137,15 @@ export function ScanScreen({ navigation }: Props) {
       allowsEditing: true,
       aspect: [1, 1],
       quality: 1,
+      exif: true,
     });
     if (!result.canceled && result.assets[0]) {
-      await persistScan(result.assets[0].uri);
+      const asset = result.assets[0];
+      let coords = extractExifCoordinates(asset.exif);
+      if (!coords) {
+        coords = await getLocationCoordinates();
+      }
+      await persistScan(asset.uri, coords);
     }
   }
 

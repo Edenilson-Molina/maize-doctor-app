@@ -15,6 +15,7 @@ import { ChipPicker } from '@/components/ChipPicker';
 import { SeverityGuide } from '@/components/SeverityGuide';
 import { Icon } from '@/components/Icon';
 import { getScanById } from '@/data/queries/scanQueries';
+import { getMockScans } from '@/data/mockData';
 import { createCorrection, observeCorrectionsForScan } from '@/data/queries/correctionQueries';
 import { trySyncNow } from '@/api/syncQueue';
 import { describeSyncOutcome, toneForOutcome } from '@/api/syncMessages';
@@ -41,7 +42,23 @@ export function ScanDetail({ route }: Props) {
   );
 
   useEffect(() => {
-    getScanById(scanId).then(setScan);
+    getScanById(scanId)
+      .then(setScan)
+      .catch(() => {
+        const found = getMockScans().find((m) => m.id === scanId);
+        if (found) {
+          setScan({
+            id: found.id,
+            imageUri: found.imageUri,
+            label: found.label,
+            confidence: found.confidence,
+            lat: found.lat,
+            lon: found.lon,
+            temperature: found.temperature,
+            humidity: found.humidity,
+          } as unknown as Scan);
+        }
+      });
     const subscription = observeCorrectionsForScan(scanId).subscribe(setCorrections);
     return () => subscription.unsubscribe();
   }, [scanId]);
@@ -104,6 +121,14 @@ export function ScanDetail({ route }: Props) {
           <Text className="font-inter text-body-md text-on-surface-variant">
             {info.description}
           </Text>
+          {scan.lat !== null && scan.lon !== null && (
+            <View className="flex-row items-center gap-1 mt-1">
+              <Icon name="map-marker" size={14} color="#717973" />
+              <Text className="font-jetbrains text-[11px] text-on-surface-variant">
+                GPS: {scan.lat.toFixed(4)}, {scan.lon.toFixed(4)}
+              </Text>
+            </View>
+          )}
         </View>
         {scan.confidence !== null ? (
           <View className="bg-surface-container-high rounded-full px-3 py-1.5 flex-row items-center gap-1">

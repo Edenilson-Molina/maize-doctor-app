@@ -124,6 +124,8 @@ describe('ScanScreen', () => {
       expect(mockCreateScan).toHaveBeenCalledWith({
         imageUri: 'file:///cache/photo.jpg',
         label: null,
+        lat: 13.69,
+        lon: -89.19,
       }),
     );
     await waitFor(() =>
@@ -140,6 +142,62 @@ describe('ScanScreen', () => {
     );
 
     expect(await findByText('ScanResult: common_rust')).toBeTruthy();
+  });
+
+  it('picks a photo from gallery with EXIF coordinates and runs inference', async () => {
+    const ImagePicker = require('expo-image-picker');
+    ImagePicker.launchImageLibraryAsync.mockResolvedValueOnce({
+      canceled: false,
+      assets: [
+        {
+          uri: 'file:///gallery/leaf.jpg',
+          exif: {
+            GPSLatitude: 13.75,
+            GPSLongitude: 89.25,
+            GPSLatitudeRef: 'N',
+            GPSLongitudeRef: 'W',
+          },
+        },
+      ],
+    });
+
+    const { getByLabelText, findByText } = await renderScanScreen();
+    fireEvent.press(getByLabelText('Elegir de galería'));
+
+    await waitFor(() =>
+      expect(mockCreateScan).toHaveBeenCalledWith({
+        imageUri: 'file:///gallery/leaf.jpg',
+        label: null,
+        lat: 13.75,
+        lon: -89.25,
+      }),
+    );
+    expect(await findByText('ScanResult: common_rust')).toBeTruthy();
+  });
+
+  it('attaches temperature and humidity to scan when live weather is available', async () => {
+    const weatherService = require('@/services/weather/weatherService');
+    jest.spyOn(weatherService, 'getLatestWeather').mockReturnValueOnce({
+      temperature: 27,
+      humidity: 75,
+      windSpeed: 8,
+      soilStatus: 'Adecuada',
+      timestamp: Date.now(),
+      source: 'live',
+    });
+
+    const { getByLabelText } = await renderScanScreen();
+    fireEvent.press(getByLabelText('Tomar foto'));
+
+    await waitFor(() =>
+      expect(mockCreateScan).toHaveBeenCalledWith(
+        expect.objectContaining({
+          imageUri: 'file:///cache/photo.jpg',
+          temperature: 27,
+          humidity: 75,
+        })
+      )
+    );
   });
 
   it('shows an inline error and stops the spinner when inference fails, without navigating', async () => {

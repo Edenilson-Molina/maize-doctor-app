@@ -8,9 +8,13 @@ import { Q } from '@nozbe/watermelondb';
 import { DIAGNOSIS_MAP, type DiagnosisClass } from '@/content/diagnosis';
 import { Icon } from '@/components/Icon';
 import { ScanThumbnail } from '@/components/ScanThumbnail';
+import { FieldCoverageMap, type MapScan } from '@/components/FieldCoverageMap';
 import { getMockScans } from '@/data/mockData';
 import { useAuth } from '@/auth/AuthContext';
 import type { HomeStackParamList, AppTabParamList } from '@/navigation/types';
+import { useWeather } from '@/services/weather/useWeather';
+import { AgroclimaticModal } from '@/components/AgroclimaticModal';
+import type { AgroclimaticMetric } from '@/services/weather/weatherTypes';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'HomeMain'>;
 
@@ -25,7 +29,10 @@ interface ScanSummary {
 export function HomeScreen({ navigation }: Props) {
   const { user } = useAuth();
   const tabNavigation = useNavigation<BottomTabNavigationProp<AppTabParamList>>();
+  const { weather, refreshWeather } = useWeather();
+  const [selectedMetric, setSelectedMetric] = useState<AgroclimaticMetric | null>(null);
   const [recentScans, setRecentScans] = useState<ScanSummary[]>([]);
+  const [geoScans, setGeoScans] = useState<MapScan[]>([]);
   const [totalScans, setTotalScans] = useState(0);
 
   useEffect(() => {
@@ -41,11 +48,23 @@ export function HomeScreen({ navigation }: Props) {
           imageUri: null,
         })),
       );
+      setGeoScans(
+        mocks
+          .filter((s) => typeof s.lat === 'number' && typeof s.lon === 'number')
+          .map((s) => ({
+            id: s.id,
+            label: s.label,
+            confidence: s.confidence,
+            createdAt: s.createdAt,
+            lat: s.lat,
+            lon: s.lon,
+            imageUri: null,
+          })),
+      );
       return;
     }
 
     async function loadFromDb() {
-
       const col = database!.collections.get('scans');
       const all = await col.query().fetch();
       setTotalScans(all.length);
@@ -62,6 +81,46 @@ export function HomeScreen({ navigation }: Props) {
             imageUri: s.imageUri?.startsWith('dev://') ? null : s.imageUri,
           })),
       );
+
+      const withCoords = await col
+        .query(
+          Q.where('lat', Q.notEq(null)),
+          Q.where('lon', Q.notEq(null)),
+          Q.sortBy('created_at', Q.desc),
+          Q.take(50),
+        )
+        .fetch();
+
+      const mapped = withCoords
+        .filter((s: any) => s.label !== null && s.lat !== null && s.lon !== null)
+        .map((s: any) => ({
+          id: s.id,
+          label: s.label as DiagnosisClass,
+          confidence: s.confidence ?? 0,
+          createdAt: (s._raw as any).created_at as number,
+          lat: s.lat,
+          lon: s.lon,
+          imageUri: s.imageUri?.startsWith('dev://') ? null : s.imageUri,
+        }));
+
+      if (mapped.length > 0) {
+        setGeoScans(mapped);
+      } else {
+        const mocks = getMockScans();
+        setGeoScans(
+          mocks
+            .filter((s) => typeof s.lat === 'number' && typeof s.lon === 'number')
+            .map((s) => ({
+              id: s.id,
+              label: s.label,
+              confidence: s.confidence,
+              createdAt: s.createdAt,
+              lat: s.lat,
+              lon: s.lon,
+              imageUri: null,
+            })),
+        );
+      }
     }
     loadFromDb();
   }, []);
@@ -103,15 +162,67 @@ export function HomeScreen({ navigation }: Props) {
 
       {/* Environmental Metrics 2x2 */}
       <View className="flex-row mb-4">
-        <EnvironmentCard icon="thermometer" value="24°C" label="Temperatura" color="#7d562d" />
+        <EnvironmentCard
+          icon="thermometer"
+          value={`${weather.temperature}°C`}
+          label="Temperatura"
+          color="#7d562d"
+          onPress={() => setSelectedMetric('temperature')}
+        />
         <View className="w-gutter" />
-        <EnvironmentCard icon="water-outline" value="65%" label="Humedad" color="#3f6653" />
+        <EnvironmentCard
+          icon="water-outline"
+          value={`${weather.humidity}%`}
+          label="Humedad"
+          color="#3f6653"
+          onPress={() => setSelectedMetric('humidity')}
+        />
       </View>
-      <View className="flex-row mb-6">
-        <EnvironmentCard icon="grass" value="Adecuada" label="Hum. Suelo" color="#ffca98" />
+      <View className="flex-row mb-3">
+        <EnvironmentCard
+          icon="grass"
+          value={weather.soilStatus}
+          label="Hum. Suelo"
+          color="#ffca98"
+          onPress={() => setSelectedMetric('soil')}
+        />
         <View className="w-gutter" />
-        <EnvironmentCard icon="weather-windy" value="12 km/h" label="Viento" color="#717973" />
+        <EnvironmentCard
+          icon="weather-windy"
+          value={`${weather.windSpeed} km/h`}
+          label="Viento"
+          color="#717973"
+          onPress={() => setSelectedMetric('wind')}
+        />
       </View>
+
+      {/* Weather status caption */}
+      <Pressable
+        onPress={() => setSelectedMetric('temperature')}
+        accessibilityRole="button"
+        accessibilityLabel="Información sobre fuente de datos climáticos y criterio agronómico"
+        testID="weather-status-badge"
+        className="flex-row items-center justify-center mb-6 py-1.5 px-3.5 self-center rounded-full bg-surface-container-lowest border border-surface-variant/70 active:bg-surface-variant/30"
+      >
+        <View
+          className="w-2.5 h-2.5 rounded-full mr-2"
+          style={{
+            backgroundColor:
+              weather.source === 'live'
+                ? '#52B788'
+                : weather.source === 'cached'
+                  ? '#D4A373'
+                  : '#A0AEC0',
+          }}
+        />
+        <Text className="font-jetbrains text-[11px] text-on-surface-variant">
+          {weather.source === 'live'
+            ? 'Clima en vivo (GPS) • Tocar para criterio'
+            : weather.source === 'cached'
+              ? 'Guardado en memoria • Modo sin conexión'
+              : 'Valores de referencia • Sin conexión'}
+        </Text>
+      </Pressable>
 
       {/* Science Banner */}
       <Pressable
@@ -153,7 +264,11 @@ export function HomeScreen({ navigation }: Props) {
       ) : (
         <View className="flex flex-col w-full" style={{ gap: 16 }}>
           {recentScans.map((scan) => (
-            <ScanCard key={scan.id} scan={scan} />
+            <ScanCard
+              key={scan.id}
+              scan={scan}
+              onPress={() => navigation.navigate('ScanDetail', { scanId: scan.id })}
+            />
           ))}
         </View>
       )}
@@ -163,18 +278,19 @@ export function HomeScreen({ navigation }: Props) {
         <Text className="font-hanken-semibold text-headline-sm text-primary mb-3">
           Cobertura del Campo
         </Text>
-        <View className="bg-surface-container-lowest rounded-xl border border-surface-variant h-40 items-center justify-center overflow-hidden">
-          <Icon name="map-outline" size={48} color="#c1c8c2" />
-          <Text className="font-inter text-sm text-outline mt-2">
-            Mapa satelital — disponible en version futura
-          </Text>
-          <View className="absolute bottom-2 right-2 bg-surface/90 px-2 py-1 rounded border border-outline-variant">
-            <Text className="font-jetbrains text-[10px] text-on-surface-variant">
-              Sector B: {totalScans} escaneos
-            </Text>
-          </View>
-        </View>
+        <FieldCoverageMap
+          scans={geoScans}
+          onSelectScan={(scanId) => navigation.navigate('ScanDetail', { scanId })}
+          height={240}
+        />
       </View>
+
+      <AgroclimaticModal
+        visible={selectedMetric !== null}
+        onClose={() => setSelectedMetric(null)}
+        selectedMetric={selectedMetric ?? 'temperature'}
+        weather={weather}
+      />
     </ScrollView>
   );
 }
@@ -184,22 +300,30 @@ function EnvironmentCard({
   value,
   label,
   color,
+  onPress,
 }: {
   icon: string;
   value: string;
   label: string;
   color: string;
+  onPress?: () => void;
 }) {
   return (
-    <View className="flex-1 bg-surface-container-lowest rounded-xl border border-surface-variant p-4 items-center justify-center shadow-sm">
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Métrica climática ${label}: ${value}. Tocar para ver criterio agronómico.`}
+      testID={`weather-card-${label.toLowerCase().replace(/[^a-z0-9]/g, '')}`}
+      className="flex-1 bg-surface-container-lowest rounded-xl border border-surface-variant p-4 items-center justify-center shadow-sm active:bg-surface-variant/20"
+    >
       <Icon name={icon as never} size={28} color={color} />
       <Text className="font-hanken-semibold text-headline-sm text-on-surface mt-2">{value}</Text>
       <Text className="font-jetbrains text-label-md text-on-surface-variant mt-0.5">{label}</Text>
-    </View>
+    </Pressable>
   );
 }
 
-function ScanCard({ scan }: { scan: ScanSummary }) {
+function ScanCard({ scan, onPress }: { scan: ScanSummary; onPress?: () => void }) {
   const info = DIAGNOSIS_MAP[scan.label];
   const timeAgo = getTimeAgo(scan.createdAt);
   const confPercent = `${(scan.confidence * 100).toFixed(0)}%`;
@@ -212,8 +336,10 @@ function ScanCard({ scan }: { scan: ScanSummary }) {
         : { bg: 'rgba(255,202,152,0.3)', text: '#7d562d' };
 
   return (
-    <View
-      className="bg-surface-container-lowest rounded-xl border border-surface-variant overflow-hidden shadow-sm"
+    <Pressable
+      onPress={onPress}
+      accessibilityLabel={`Ver detalle de escaneo ${info.label}`}
+      className="bg-surface-container-lowest rounded-xl border border-surface-variant overflow-hidden shadow-sm active:opacity-90"
       style={{ width: '100%' }}
     >
       {/* Image thumbnail */}
@@ -239,7 +365,7 @@ function ScanCard({ scan }: { scan: ScanSummary }) {
         </View>
         <Text className="font-inter text-sm text-on-surface-variant mt-0.5">{timeAgo}</Text>
       </View>
-    </View>
+    </Pressable>
   );
 }
 

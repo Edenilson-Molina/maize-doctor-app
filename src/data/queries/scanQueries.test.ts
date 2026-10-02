@@ -1,5 +1,10 @@
 const mockWrite = jest.fn((callback: () => Promise<void>) => callback());
 const mockFind = jest.fn();
+const mockCreate = jest.fn((creator: (scan: any) => void) => {
+  const s = {} as any;
+  creator(s);
+  return s;
+});
 
 jest.mock('../database', () => ({
   database: {
@@ -7,12 +12,13 @@ jest.mock('../database', () => ({
     collections: {
       get: jest.fn(() => ({
         find: (id: string) => mockFind(id),
+        create: (creator: (scan: any) => void) => mockCreate(creator),
       })),
     },
   },
 }));
 
-import { updateScanResult, getScanById } from './scanQueries';
+import { updateScanResult, getScanById, createScan } from './scanQueries';
 import type { Scan } from '../models/Scan';
 
 describe('updateScanResult', () => {
@@ -95,5 +101,29 @@ describe('updateScanResult with a stored image', () => {
     });
 
     expect(fakeScan.imageUri).toBe('file:///cache/photo.jpg');
+  });
+});
+
+describe('createScan', () => {
+  beforeEach(() => {
+    mockWrite.mockClear();
+    mockCreate.mockClear();
+  });
+
+  it('creates a scan record with coordinates, image URI and initial flags', async () => {
+    const result = await createScan({
+      imageUri: 'file:///cache/leaf.jpg',
+      label: null,
+      lat: 13.6923,
+      lon: -89.1923,
+    });
+
+    expect(mockWrite).toHaveBeenCalledTimes(1);
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+    expect(result.imageUri).toBe('file:///cache/leaf.jpg');
+    expect(result.label).toBeNull();
+    expect(result.lat).toBe(13.6923);
+    expect(result.lon).toBe(-89.1923);
+    expect(result.synced).toBe(false);
   });
 });

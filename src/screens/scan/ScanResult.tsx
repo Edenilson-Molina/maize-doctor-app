@@ -40,6 +40,8 @@ export function ScanResult({ route, navigation }: Props) {
     temperature,
     humidity,
     createdAt,
+    lat,
+    lon,
   } = route.params;
   const info = DIAGNOSIS_MAP[label];
   const badge = getPriorityBadge(info);
@@ -112,10 +114,18 @@ export function ScanResult({ route, navigation }: Props) {
           <Icon name={badge.icon} size={16} color="#ffffff" />
           <Text className="font-jetbrains text-label-md text-white">{badge.label}</Text>
         </View>
-        <View className="absolute bottom-0 left-0 right-0 bg-black/60 px-4 py-3">
+        <View className="absolute bottom-0 left-0 right-0 bg-black/60 px-4 py-3 flex-row justify-between items-center">
           <Text className="font-jetbrains text-label-md text-white/90">
             {dateLabel} • {timeLabel}
           </Text>
+          {lat != null && lon != null && (
+            <View className="flex-row items-center gap-1">
+              <Icon name="map-marker" size={14} color="#b1f0ce" />
+              <Text className="font-jetbrains text-[11px] text-white/90">
+                {lat.toFixed(4)}, {lon.toFixed(4)}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
 

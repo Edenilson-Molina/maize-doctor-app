@@ -47,3 +47,20 @@ yarn-error.*
 # release signing (local only)
 *.keystore
 credentials/
+
+# LaTeX auxiliary files (keep only .tex, .pdf, and assets)
+*.aux
+*.log
+*.toc
+*.out
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.bbl
+*.blg
+*.lof
+*.lot
+*.nav
+*.snm
+*.vrb
+
