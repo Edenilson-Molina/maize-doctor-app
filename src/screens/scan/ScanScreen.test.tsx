@@ -175,6 +175,31 @@ describe('ScanScreen', () => {
     expect(await findByText('ScanResult: common_rust')).toBeTruthy();
   });
 
+  it('attaches temperature and humidity to scan when live weather is available', async () => {
+    const weatherService = require('@/services/weather/weatherService');
+    jest.spyOn(weatherService, 'getLatestWeather').mockReturnValueOnce({
+      temperature: 27,
+      humidity: 75,
+      windSpeed: 8,
+      soilStatus: 'Adecuada',
+      timestamp: Date.now(),
+      source: 'live',
+    });
+
+    const { getByLabelText } = await renderScanScreen();
+    fireEvent.press(getByLabelText('Tomar foto'));
+
+    await waitFor(() =>
+      expect(mockCreateScan).toHaveBeenCalledWith(
+        expect.objectContaining({
+          imageUri: 'file:///cache/photo.jpg',
+          temperature: 27,
+          humidity: 75,
+        })
+      )
+    );
+  });
+
   it('shows an inline error and stops the spinner when inference fails, without navigating', async () => {
     mockPredict.mockRejectedValueOnce(new Error('modelo no disponible'));
     const { getByLabelText, findByText, queryByText } = await renderScanScreen();
