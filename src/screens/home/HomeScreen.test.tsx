@@ -70,4 +70,23 @@ describe('HomeScreen', () => {
       expect.objectContaining({ scanId: expect.any(String) })
     );
   });
+
+  it('opens AgroclimaticModal when an environmental card is pressed', async () => {
+    const { findByTestId, findByText } = await renderHomeScreen();
+
+    const tempCard = await findByTestId('weather-card-temperatura');
+    await fireEvent.press(tempCard);
+
+    expect(await findByTestId('agroclimatic-modal')).toBeTruthy();
+    expect(await findByText('Criterio Agroclimático')).toBeTruthy();
+  });
+
+  it('opens AgroclimaticModal when weather status badge is pressed', async () => {
+    const { findByTestId } = await renderHomeScreen();
+
+    const badge = await findByTestId('weather-status-badge');
+    await fireEvent.press(badge);
+
+    expect(await findByTestId('agroclimatic-modal')).toBeTruthy();
+  });
 });

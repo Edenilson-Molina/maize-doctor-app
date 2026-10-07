@@ -13,6 +13,7 @@ import { logger } from '@/lib/logger';
 import { cropPhotoToOverlay } from '@/utils/cropOverlay';
 import { getLocationCoordinates, extractExifCoordinates, type Coordinates } from '@/utils/location';
 import type { ScanStackParamList } from '@/navigation/types';
+import { getLatestWeather } from '@/services/weather/weatherService';
 
 type Props = NativeStackScreenProps<ScanStackParamList, 'ScanCamera'>;
 
@@ -54,11 +55,17 @@ export function ScanScreen({ navigation }: Props) {
    * @returns {Promise<void>} Resolves once the scan is stored and navigation happened.
    */
   async function runScanPipeline(imageUri: string, coords?: Coordinates | null) {
+    const env = getLatestWeather();
+    const envTemp = env.source !== 'offline_default' ? env.temperature : null;
+    const envHumidity = env.source !== 'offline_default' ? env.humidity : null;
+
     const scan = await createScan({
       imageUri,
       label: null,
       lat: coords?.latitude ?? null,
       lon: coords?.longitude ?? null,
+      ...(envTemp !== null ? { temperature: envTemp } : {}),
+      ...(envHumidity !== null ? { humidity: envHumidity } : {}),
     });
 
     // Storing the photo re-encodes a full-resolution JPEG and dominated the pipeline,
@@ -79,8 +86,8 @@ export function ScanScreen({ navigation }: Props) {
         confidence: result.confidence,
         distribution: result.distribution,
         isUnrecognized: result.isUnrecognized,
-        temperature: null,
-        humidity: null,
+        temperature: envTemp,
+        humidity: envHumidity,
         createdAt: Date.now(),
         lat: coords?.latitude ?? null,
         lon: coords?.longitude ?? null,

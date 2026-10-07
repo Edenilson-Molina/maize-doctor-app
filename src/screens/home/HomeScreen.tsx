@@ -12,6 +12,9 @@ import { FieldCoverageMap, type MapScan } from '@/components/FieldCoverageMap';
 import { getMockScans } from '@/data/mockData';
 import { useAuth } from '@/auth/AuthContext';
 import type { HomeStackParamList, AppTabParamList } from '@/navigation/types';
+import { useWeather } from '@/services/weather/useWeather';
+import { AgroclimaticModal } from '@/components/AgroclimaticModal';
+import type { AgroclimaticMetric } from '@/services/weather/weatherTypes';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'HomeMain'>;
 
@@ -26,6 +29,8 @@ interface ScanSummary {
 export function HomeScreen({ navigation }: Props) {
   const { user } = useAuth();
   const tabNavigation = useNavigation<BottomTabNavigationProp<AppTabParamList>>();
+  const { weather, refreshWeather } = useWeather();
+  const [selectedMetric, setSelectedMetric] = useState<AgroclimaticMetric | null>(null);
   const [recentScans, setRecentScans] = useState<ScanSummary[]>([]);
   const [geoScans, setGeoScans] = useState<MapScan[]>([]);
   const [totalScans, setTotalScans] = useState(0);
@@ -157,15 +162,67 @@ export function HomeScreen({ navigation }: Props) {
 
       {/* Environmental Metrics 2x2 */}
       <View className="flex-row mb-4">
-        <EnvironmentCard icon="thermometer" value="24°C" label="Temperatura" color="#7d562d" />
+        <EnvironmentCard
+          icon="thermometer"
+          value={`${weather.temperature}°C`}
+          label="Temperatura"
+          color="#7d562d"
+          onPress={() => setSelectedMetric('temperature')}
+        />
         <View className="w-gutter" />
-        <EnvironmentCard icon="water-outline" value="65%" label="Humedad" color="#3f6653" />
+        <EnvironmentCard
+          icon="water-outline"
+          value={`${weather.humidity}%`}
+          label="Humedad"
+          color="#3f6653"
+          onPress={() => setSelectedMetric('humidity')}
+        />
       </View>
-      <View className="flex-row mb-6">
-        <EnvironmentCard icon="grass" value="Adecuada" label="Hum. Suelo" color="#ffca98" />
+      <View className="flex-row mb-3">
+        <EnvironmentCard
+          icon="grass"
+          value={weather.soilStatus}
+          label="Hum. Suelo"
+          color="#ffca98"
+          onPress={() => setSelectedMetric('soil')}
+        />
         <View className="w-gutter" />
-        <EnvironmentCard icon="weather-windy" value="12 km/h" label="Viento" color="#717973" />
+        <EnvironmentCard
+          icon="weather-windy"
+          value={`${weather.windSpeed} km/h`}
+          label="Viento"
+          color="#717973"
+          onPress={() => setSelectedMetric('wind')}
+        />
       </View>
+
+      {/* Weather status caption */}
+      <Pressable
+        onPress={() => setSelectedMetric('temperature')}
+        accessibilityRole="button"
+        accessibilityLabel="Información sobre fuente de datos climáticos y criterio agronómico"
+        testID="weather-status-badge"
+        className="flex-row items-center justify-center mb-6 py-1.5 px-3.5 self-center rounded-full bg-surface-container-lowest border border-surface-variant/70 active:bg-surface-variant/30"
+      >
+        <View
+          className="w-2.5 h-2.5 rounded-full mr-2"
+          style={{
+            backgroundColor:
+              weather.source === 'live'
+                ? '#52B788'
+                : weather.source === 'cached'
+                  ? '#D4A373'
+                  : '#A0AEC0',
+          }}
+        />
+        <Text className="font-jetbrains text-[11px] text-on-surface-variant">
+          {weather.source === 'live'
+            ? 'Clima en vivo (GPS) • Tocar para criterio'
+            : weather.source === 'cached'
+              ? 'Guardado en memoria • Modo sin conexión'
+              : 'Valores de referencia • Sin conexión'}
+        </Text>
+      </Pressable>
 
       {/* Science Banner */}
       <Pressable
@@ -227,6 +284,13 @@ export function HomeScreen({ navigation }: Props) {
           height={240}
         />
       </View>
+
+      <AgroclimaticModal
+        visible={selectedMetric !== null}
+        onClose={() => setSelectedMetric(null)}
+        selectedMetric={selectedMetric ?? 'temperature'}
+        weather={weather}
+      />
     </ScrollView>
   );
 }
@@ -236,18 +300,26 @@ function EnvironmentCard({
   value,
   label,
   color,
+  onPress,
 }: {
   icon: string;
   value: string;
   label: string;
   color: string;
+  onPress?: () => void;
 }) {
   return (
-    <View className="flex-1 bg-surface-container-lowest rounded-xl border border-surface-variant p-4 items-center justify-center shadow-sm">
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Métrica climática ${label}: ${value}. Tocar para ver criterio agronómico.`}
+      testID={`weather-card-${label.toLowerCase().replace(/[^a-z0-9]/g, '')}`}
+      className="flex-1 bg-surface-container-lowest rounded-xl border border-surface-variant p-4 items-center justify-center shadow-sm active:bg-surface-variant/20"
+    >
       <Icon name={icon as never} size={28} color={color} />
       <Text className="font-hanken-semibold text-headline-sm text-on-surface mt-2">{value}</Text>
       <Text className="font-jetbrains text-label-md text-on-surface-variant mt-0.5">{label}</Text>
-    </View>
+    </Pressable>
   );
 }
 
