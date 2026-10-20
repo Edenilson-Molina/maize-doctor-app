@@ -1,6 +1,45 @@
 import * as SecureStore from 'expo-secure-store';
 
 const MISMATCH_KEY = 'doctormaiz_remote_credential_mismatch';
+const PENDING_REGISTER_KEY = 'doctormaiz_remote_register_pending';
+
+/**
+ * Records that the account exists locally but the backend registration failed, so the
+ * next successful local login retries it instead of leaving sync permanently unauthenticated.
+ *
+ * @returns {Promise<void>} Resolves once the flag is stored; never throws.
+ */
+export async function flagRemoteRegisterPending(): Promise<void> {
+  try {
+    await SecureStore.setItemAsync(PENDING_REGISTER_KEY, '1');
+  } catch {
+    // Best-effort: without the flag the account simply stays local-only, as before.
+  }
+}
+
+/**
+ * Clears the pending-registration flag once the backend has the account.
+ *
+ * @returns {Promise<void>} Resolves once the flag is removed; never throws.
+ */
+export async function clearRemoteRegisterPending(): Promise<void> {
+  try {
+    await SecureStore.deleteItemAsync(PENDING_REGISTER_KEY);
+  } catch {
+    // Best-effort: a stale flag only causes one extra registration attempt.
+  }
+}
+
+/**
+ * @returns {Promise<boolean>} True when a backend registration failed and still needs a retry.
+ */
+export async function hasRemoteRegisterPending(): Promise<boolean> {
+  try {
+    return (await SecureStore.getItemAsync(PENDING_REGISTER_KEY)) === '1';
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Records that the backend rejected the credentials that just worked locally.

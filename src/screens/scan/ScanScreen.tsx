@@ -59,9 +59,41 @@ export function ScanScreen({ navigation }: Props) {
     const envTemp = env.source !== 'offline_default' ? env.temperature : null;
     const envHumidity = env.source !== 'offline_default' ? env.humidity : null;
 
+    // Inference runs first so a rejected photo never reaches storage: no record and no
+    // saved image. Only accepted photos are persisted.
+    let result: Awaited<ReturnType<ReturnType<typeof getInferenceEngine>['predict']>>;
+    try {
+      result = await getInferenceEngine().predict(imageUri);
+    } catch (error) {
+      logger.error('No se pudo analizar la foto', error);
+      setScanError(true);
+      throw error;
+    }
+
+    if (result.isUnrecognized) {
+      navigation.navigate('ScanResult', {
+        imageUri,
+        label: result.label,
+        confidence: result.confidence,
+        distribution: result.distribution,
+        isUnrecognized: true,
+        temperature: envTemp,
+        humidity: envHumidity,
+        createdAt: Date.now(),
+        lat: coords?.latitude ?? null,
+        lon: coords?.longitude ?? null,
+      });
+      return;
+    }
+
+    // The record is created with its full result in one write. Creating it empty and
+    // filling it in afterwards left a window where an app closed mid-analysis kept an
+    // accepted scan with no label, which every list hides.
     const scan = await createScan({
       imageUri,
-      label: null,
+      label: result.label,
+      confidence: result.confidence,
+      distribution: result.distribution,
       lat: coords?.latitude ?? null,
       lon: coords?.longitude ?? null,
       ...(envTemp !== null ? { temperature: envTemp } : {}),
@@ -77,31 +109,22 @@ export function ScanScreen({ navigation }: Props) {
       return null;
     });
 
-    try {
-      const result = await getInferenceEngine().predict(imageUri);
+    navigation.navigate('ScanResult', {
+      imageUri,
+      label: result.label,
+      confidence: result.confidence,
+      distribution: result.distribution,
+      isUnrecognized: false,
+      temperature: envTemp,
+      humidity: envHumidity,
+      createdAt: Date.now(),
+      lat: coords?.latitude ?? null,
+      lon: coords?.longitude ?? null,
+    });
 
-      navigation.navigate('ScanResult', {
-        imageUri,
-        label: result.label,
-        confidence: result.confidence,
-        distribution: result.distribution,
-        isUnrecognized: result.isUnrecognized,
-        temperature: envTemp,
-        humidity: envHumidity,
-        createdAt: Date.now(),
-        lat: coords?.latitude ?? null,
-        lon: coords?.longitude ?? null,
-      });
-
-      // Both fields land in one write. Updating them separately raced: two concurrent
-      // scan.update() calls on the same record let the second overwrite the first with
-      // its stale copy, which silently blanked the stored image in the history list.
-      const storedUri = await storedImage;
-      await updateScanResult(scan, result, storedUri ?? undefined);
-    } catch (error) {
-      logger.error(`No se pudo analizar el escaneo ${scan.id}`, error);
-      setScanError(true);
-      throw error;
+    const storedUri = await storedImage;
+    if (storedUri) {
+      await updateScanResult(scan, result, storedUri);
     }
   }
 

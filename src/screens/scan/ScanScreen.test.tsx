@@ -123,7 +123,9 @@ describe('ScanScreen', () => {
     await waitFor(() =>
       expect(mockCreateScan).toHaveBeenCalledWith({
         imageUri: 'file:///cache/photo.jpg',
-        label: null,
+        label: 'common_rust',
+        confidence: 0.82,
+        distribution: { common_rust: 0.82, healthy: 0.18 },
         lat: 13.69,
         lon: -89.19,
       }),
@@ -142,6 +144,23 @@ describe('ScanScreen', () => {
     );
 
     expect(await findByText('ScanResult: common_rust')).toBeTruthy();
+  });
+
+  it('does not create a record or save the photo when the photo is rejected', async () => {
+    mockPredict.mockResolvedValueOnce({
+      label: 'common_rust',
+      confidence: 0.41,
+      distribution: { common_rust: 0.41, healthy: 0.35 },
+      isUnrecognized: true,
+    });
+    const { getByLabelText, findByText } = await renderScanScreen();
+
+    fireEvent.press(getByLabelText('Tomar foto'));
+
+    expect(await findByText('ScanResult: common_rust')).toBeTruthy();
+    expect(mockCreateScan).not.toHaveBeenCalled();
+    expect(mockSavePhotoFile).not.toHaveBeenCalled();
+    expect(mockUpdateScanResult).not.toHaveBeenCalled();
   });
 
   it('picks a photo from gallery with EXIF coordinates and runs inference', async () => {
@@ -167,7 +186,9 @@ describe('ScanScreen', () => {
     await waitFor(() =>
       expect(mockCreateScan).toHaveBeenCalledWith({
         imageUri: 'file:///gallery/leaf.jpg',
-        label: null,
+        label: 'common_rust',
+        confidence: 0.82,
+        distribution: { common_rust: 0.82, healthy: 0.18 },
         lat: 13.75,
         lon: -89.25,
       }),
@@ -293,14 +314,17 @@ describe('ScanScreen background photo save', () => {
     );
   });
 
-  it('still records the diagnosis when storing the photo fails', async () => {
+  it('keeps the diagnosis and the camera URI when storing the photo fails', async () => {
     mockSavePhotoFile.mockRejectedValue(new Error('disk full'));
-    const { getByLabelText } = await renderScanScreen();
+    const { getByLabelText, findByText } = await renderScanScreen();
 
     fireEvent.press(getByLabelText('Tomar foto'));
 
-    await waitFor(() => expect(mockUpdateScanResult).toHaveBeenCalled());
-    // No stored URI: the record keeps the camera URI rather than a path to nothing.
-    expect(mockUpdateScanResult.mock.calls[0][2]).toBeUndefined();
+    expect(await findByText('ScanResult: common_rust')).toBeTruthy();
+    // The record was created with its result, so nothing needs updating when the save fails.
+    expect(mockCreateScan).toHaveBeenCalledWith(
+      expect.objectContaining({ label: 'common_rust', imageUri: 'file:///cache/photo.jpg' }),
+    );
+    expect(mockUpdateScanResult).not.toHaveBeenCalled();
   });
 });

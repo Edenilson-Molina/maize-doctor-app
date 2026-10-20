@@ -24,10 +24,16 @@ const mockRemoteLogout = jest.fn();
 const mockRemoteGetUser = jest.fn();
 const mockFlagMismatch = jest.fn();
 const mockClearMismatch = jest.fn();
+const mockFlagRegisterPending = jest.fn();
+const mockClearRegisterPending = jest.fn();
+const mockHasRegisterPending = jest.fn().mockResolvedValue(false);
 
 jest.mock('@/api/remoteAuthStatus', () => ({
   flagCredentialMismatch: () => mockFlagMismatch(),
   clearCredentialMismatch: () => mockClearMismatch(),
+  flagRemoteRegisterPending: () => mockFlagRegisterPending(),
+  clearRemoteRegisterPending: () => mockClearRegisterPending(),
+  hasRemoteRegisterPending: () => mockHasRegisterPending(),
 }));
 
 jest.mock('@/api/RemoteSessionService', () => ({
@@ -107,6 +113,7 @@ describe('AuthContext remote mirroring', () => {
     mockLocalAdopt.mockResolvedValue(undefined);
     mockFlagMismatch.mockResolvedValue(undefined);
     mockClearMismatch.mockResolvedValue(undefined);
+    mockHasRegisterPending.mockResolvedValue(false);
   });
 
   it('mirrors a successful local login to the remote session', async () => {
@@ -163,6 +170,36 @@ describe('AuthContext remote mirroring', () => {
     await waitFor(() =>
       expect(mockRemoteRegister).toHaveBeenCalledWith('Farmer', 'farmer@example.com', 'secret')
     );
+  });
+
+  it('marks a failed remote register as pending instead of dropping it', async () => {
+    mockLocalRegister.mockResolvedValue({
+      success: true,
+      user: { id: 'u1', name: 'Farmer', email: 'farmer@example.com' },
+    });
+    mockRemoteRegister.mockRejectedValue(new Error('Network request failed'));
+    const { getByLabelText, findByText } = await renderProbe();
+    await findByText('ready');
+
+    fireEvent.press(getByLabelText('do-register'));
+
+    await waitFor(() => expect(mockFlagRegisterPending).toHaveBeenCalledTimes(1));
+  });
+
+  it('retries a pending remote register before mirroring the next login', async () => {
+    mockHasRegisterPending.mockResolvedValue(true);
+    mockLocalLogin.mockResolvedValue({
+      success: true,
+      user: { id: 'u1', name: 'Farmer', email: 'farmer@example.com' },
+    });
+    const { getByLabelText, findByText } = await renderProbe();
+    await findByText('ready');
+
+    fireEvent.press(getByLabelText('do-login'));
+
+    await waitFor(() => expect(mockClearRegisterPending).toHaveBeenCalledTimes(1));
+    expect(mockRemoteRegister).toHaveBeenCalledWith('Farmer', 'farmer@example.com', 'secret');
+    expect(mockRemoteLogin).toHaveBeenCalledWith('farmer@example.com', 'secret');
   });
 
   it('reports guest state when there is no stored session', async () => {
