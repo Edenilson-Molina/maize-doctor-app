@@ -17,6 +17,10 @@ export type SyncOutcome =
   | { status: 'partial'; synced: number; failed: number };
 
 export async function flushPendingSync(): Promise<void> {
+  // Without a backend the sync client is a mock that reports success. Marking records as
+  // synced there would drop them for good once a real backend is configured.
+  if (!process.env.EXPO_PUBLIC_API_URL) return;
+
   const syncClient = getSyncClient();
 
   const corrections = await getUnsyncedCorrections();

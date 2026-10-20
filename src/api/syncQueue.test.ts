@@ -46,10 +46,13 @@ import { flushPendingSync, startSyncListener, trySyncNow } from './syncQueue';
 describe('flushPendingSync', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockSyncCorrection.mockReset();
+    mockSyncContribution.mockReset();
     mockGetUnsyncedCorrections.mockResolvedValue([]);
     mockGetUnsyncedContributions.mockResolvedValue([]);
     mockSyncCorrection.mockResolvedValue(undefined);
     mockSyncContribution.mockResolvedValue(undefined);
+    process.env.EXPO_PUBLIC_API_URL = 'https://api.doctormaiz.test';
   });
 
   it('syncs and marks every unsynced record across the tracked tables', async () => {
@@ -86,6 +89,29 @@ describe('flushPendingSync', () => {
 
     expect(mockMarkCorrectionSynced).not.toHaveBeenCalledWith(correctionA);
     expect(mockMarkCorrectionSynced).toHaveBeenCalledWith(correctionB);
+  });
+});
+
+describe('flushPendingSync without a backend', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetUnsyncedCorrections.mockResolvedValue([{ id: 'correction-1' }]);
+    mockGetUnsyncedContributions.mockResolvedValue([{ id: 'contribution-1' }]);
+  });
+
+  afterEach(() => {
+    process.env.EXPO_PUBLIC_API_URL = 'https://api.doctormaiz.test';
+  });
+
+  it('neither uploads nor marks records as synced when no backend is configured', async () => {
+    process.env.EXPO_PUBLIC_API_URL = '';
+
+    await flushPendingSync();
+
+    expect(mockSyncCorrection).not.toHaveBeenCalled();
+    expect(mockSyncContribution).not.toHaveBeenCalled();
+    expect(mockMarkCorrectionSynced).not.toHaveBeenCalled();
+    expect(mockMarkContributionSynced).not.toHaveBeenCalled();
   });
 });
 

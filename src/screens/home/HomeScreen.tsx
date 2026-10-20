@@ -64,65 +64,70 @@ export function HomeScreen({ navigation }: Props) {
       return;
     }
 
-    async function loadFromDb() {
-      const col = database!.collections.get('scans');
-      const all = await col.query().fetch();
-      setTotalScans(all.length);
-
-      const recent = await col.query(Q.sortBy('created_at', Q.desc), Q.take(4)).fetch();
-      setRecentScans(
-        recent
-          .filter((s: any) => s.label !== null)
-          .map((s: any) => ({
-            id: s.id,
-            label: s.label as DiagnosisClass,
-            confidence: s.confidence ?? 0,
-            createdAt: (s._raw as any).created_at as number,
-            imageUri: s.imageUri?.startsWith('dev://') ? null : s.imageUri,
-          })),
-      );
-
-      const withCoords = await col
+    // Observed queries keep the home counters, recent cards and map in step with the
+    // database. A one-time fetch left them stale until the app restarted, because this
+    // screen stays mounted when the user switches tabs.
+    const col = database!.collections.get('scans');
+    const subscriptions = [
+      col.query().observe().subscribe((all) => setTotalScans(all.length)),
+      col
+        .query(Q.sortBy('created_at', Q.desc), Q.take(4))
+        .observe()
+        .subscribe((recent: any[]) =>
+          setRecentScans(
+            recent
+              .filter((s) => s.label !== null)
+              .map((s) => ({
+                id: s.id,
+                label: s.label as DiagnosisClass,
+                confidence: s.confidence ?? 0,
+                createdAt: (s._raw as any).created_at as number,
+                imageUri: s.imageUri?.startsWith('dev://') ? null : s.imageUri,
+              })),
+          ),
+        ),
+      col
         .query(
           Q.where('lat', Q.notEq(null)),
           Q.where('lon', Q.notEq(null)),
           Q.sortBy('created_at', Q.desc),
           Q.take(50),
         )
-        .fetch();
-
-      const mapped = withCoords
-        .filter((s: any) => s.label !== null && s.lat !== null && s.lon !== null)
-        .map((s: any) => ({
-          id: s.id,
-          label: s.label as DiagnosisClass,
-          confidence: s.confidence ?? 0,
-          createdAt: (s._raw as any).created_at as number,
-          lat: s.lat,
-          lon: s.lon,
-          imageUri: s.imageUri?.startsWith('dev://') ? null : s.imageUri,
-        }));
-
-      if (mapped.length > 0) {
-        setGeoScans(mapped);
-      } else {
-        const mocks = getMockScans();
-        setGeoScans(
-          mocks
-            .filter((s) => typeof s.lat === 'number' && typeof s.lon === 'number')
+        .observe()
+        .subscribe((withCoords: any[]) => {
+          const mapped = withCoords
+            .filter((s) => s.label !== null && s.lat !== null && s.lon !== null)
             .map((s) => ({
               id: s.id,
-              label: s.label,
-              confidence: s.confidence,
-              createdAt: s.createdAt,
+              label: s.label as DiagnosisClass,
+              confidence: s.confidence ?? 0,
+              createdAt: (s._raw as any).created_at as number,
               lat: s.lat,
               lon: s.lon,
-              imageUri: null,
-            })),
-        );
-      }
-    }
-    loadFromDb();
+              imageUri: s.imageUri?.startsWith('dev://') ? null : s.imageUri,
+            }));
+
+          if (mapped.length > 0) {
+            setGeoScans(mapped);
+          } else {
+            const mocks = getMockScans();
+            setGeoScans(
+              mocks
+                .filter((s) => typeof s.lat === 'number' && typeof s.lon === 'number')
+                .map((s) => ({
+                  id: s.id,
+                  label: s.label,
+                  confidence: s.confidence,
+                  createdAt: s.createdAt,
+                  lat: s.lat,
+                  lon: s.lon,
+                  imageUri: null,
+                })),
+            );
+          }
+        }),
+    ];
+    return () => subscriptions.forEach((sub) => sub.unsubscribe());
   }, []);
 
   const userName = user?.name?.split(' ')[0] ?? 'Agricultor';

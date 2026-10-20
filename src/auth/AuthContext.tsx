@@ -2,7 +2,13 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 import type { AuthService, UserSession, AuthResult } from './AuthService';
 import { LocalAuthService } from './LocalAuthService';
 import { remoteSession } from '@/api/RemoteSessionService';
-import { clearCredentialMismatch, flagCredentialMismatch } from '@/api/remoteAuthStatus';
+import {
+  clearCredentialMismatch,
+  clearRemoteRegisterPending,
+  flagCredentialMismatch,
+  flagRemoteRegisterPending,
+  hasRemoteRegisterPending,
+} from '@/api/remoteAuthStatus';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -45,15 +51,37 @@ function isCredentialRejection(error: unknown): boolean {
 }
 
 /**
+ * Completes a backend registration that failed earlier, so the account can sync.
+ *
+ * Runs only while the password is in hand, i.e. during a successful local login. A 409
+ * means the account already exists remotely, which is the goal, so it counts as done.
+ *
+ * @param {string} name Display name for the account.
+ * @param {string} email Account email.
+ * @param {string} password Password that just authenticated locally.
+ * @returns {Promise<void>} Resolves once the retry has finished; never throws.
+ */
+async function retryPendingRemoteRegister(name: string, email: string, password: string): Promise<void> {
+  if (!(await hasRemoteRegisterPending())) return;
+  try {
+    await remoteSession.register(name, email, password);
+    await clearRemoteRegisterPending();
+  } catch {
+    // Still pending: the next successful login tries again.
+  }
+}
+
+/**
  * Mirrors the login to the backend, recording whether the credentials still match.
  *
+ * @param {string} name Display name, used if a failed registration must be retried.
  * @param {string} email Account email.
  * @param {string} password Password that just authenticated locally.
  * @returns {void} Fire-and-forget: never blocks or fails the local login.
  */
-function mirrorLogin(email: string, password: string): void {
-  remoteSession
-    .login(email, password)
+function mirrorLogin(name: string, email: string, password: string): void {
+  retryPendingRemoteRegister(name, email, password)
+    .then(() => remoteSession.login(email, password))
     .then(() => clearCredentialMismatch())
     .catch((error: unknown) => {
       if (isCredentialRejection(error)) {
@@ -79,7 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const result = await authService.login(email, password);
     if (result.success && result.user) {
       setUser(result.user);
-      mirrorLogin(email, password);
+      mirrorLogin(result.user.name, email, password);
       return result;
     }
 
@@ -108,7 +136,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const result = await authService.register(name, email, password);
     if (result.success && result.user) {
       setUser(result.user);
-      remoteSession.register(name, email, password).catch(() => {});
+      remoteSession
+        .register(name, email, password)
+        .catch(() => flagRemoteRegisterPending());
     }
     return result;
   };
