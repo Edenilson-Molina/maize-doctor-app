@@ -1,10 +1,9 @@
-const mockReadPixels = jest.fn();
 const mockDrawImageRectOptions = jest.fn();
-const mockMakeImageSnapshot = jest.fn();
 const mockDispose = jest.fn();
 const mockMakeImageFromEncoded = jest.fn();
 const mockDataFromURI = jest.fn();
 const mockMakeOffscreen = jest.fn();
+const mockReadPixels = jest.fn();
 
 jest.mock('@shopify/react-native-skia', () => ({
   Skia: {
@@ -19,117 +18,96 @@ jest.mock('@shopify/react-native-skia', () => ({
   MipmapMode: { None: 0 },
 }));
 
+import { buildInputTensor } from './imageTensor';
 import { preprocessImageWithSkia } from './preprocessImageSkia';
+import { resizeBilinearAntialias } from './resample';
 
-const SIZE = 2;
-
-function buildPixels(size: number): Uint8Array {
-  const px = new Uint8Array(size * size * 4);
+function patternPixels(width: number, height: number): Uint8Array {
+  const px = new Uint8Array(width * height * 4);
   for (let i = 0; i < px.length; i++) px[i] = (i * 11) % 256;
   return px;
+}
+
+function fakeImage(width: number, height: number) {
+  return {
+    width: () => width,
+    height: () => height,
+    readPixels: mockReadPixels,
+    dispose: mockDispose,
+  };
 }
 
 describe('preprocessImageWithSkia', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockDataFromURI.mockResolvedValue({ dispose: mockDispose });
-    mockMakeImageFromEncoded.mockReturnValue({
-      width: () => 400,
-      height: () => 300,
-      dispose: mockDispose,
-    });
-    mockReadPixels.mockReturnValue(buildPixels(SIZE));
+    mockMakeImageFromEncoded.mockReturnValue(fakeImage(600, 400));
+    mockReadPixels.mockImplementation(
+      (_x: number, _y: number, info: { width: number; height: number }) =>
+        patternPixels(info.width, info.height),
+    );
     mockMakeOffscreen.mockImplementation((w: number, h: number) => ({
       getCanvas: () => ({ drawImageRectOptions: mockDrawImageRectOptions }),
-      makeImageSnapshot: () =>
-        mockMakeImageSnapshot({
-          width: () => w,
-          height: () => h,
-          readPixels: mockReadPixels,
-          dispose: mockDispose,
-        }),
+      makeImageSnapshot: () => fakeImage(w, h),
       dispose: mockDispose,
     }));
-    mockMakeImageSnapshot.mockImplementation((img: unknown) => img);
   });
 
-  it('decodes and scales natively without writing an intermediate file', async () => {
-    await preprocessImageWithSkia('file:///leaf.jpg', SIZE);
+  it('decodes in memory and reads the photo as RGBA_8888 without a native resize', async () => {
+    await preprocessImageWithSkia('file:///leaf.jpg', 224);
 
     expect(mockDataFromURI).toHaveBeenCalledWith('file:///leaf.jpg');
-    expect(mockMakeOffscreen).toHaveBeenCalledWith(SIZE, SIZE);
-    expect(mockDrawImageRectOptions).toHaveBeenCalled();
-  });
-
-  it('reads pixels as RGBA_8888, matching the tensor builder', async () => {
-    await preprocessImageWithSkia('file:///leaf.jpg', SIZE);
-
+    expect(mockMakeOffscreen).not.toHaveBeenCalled();
     const info = mockReadPixels.mock.calls[0][2];
-    expect(info.colorType).toBe(4);
-    expect(info.width).toBe(SIZE);
-    expect(info.height).toBe(SIZE);
+    expect(info).toMatchObject({ width: 600, height: 400, colorType: 4 });
   });
 
-  it('produces the NCHW tensor the model expects', async () => {
-    const tensor = await preprocessImageWithSkia('file:///leaf.jpg', SIZE);
+  it('resamples the final step with the Pillow-equivalent filter', async () => {
+    const tensor = await preprocessImageWithSkia('file:///leaf.jpg', 224);
 
-    expect(tensor).toBeInstanceOf(Float32Array);
-    expect(tensor.length).toBe(3 * SIZE * SIZE);
+    const expected = buildInputTensor(
+      resizeBilinearAntialias(patternPixels(600, 400), 600, 400, 224, 224),
+      224,
+    );
+    expect(tensor).toEqual(expected);
+    expect(tensor.length).toBe(3 * 224 * 224);
   });
 
-  it('stretches the source to a square, matching the training pipeline', async () => {
-    await preprocessImageWithSkia('file:///leaf.jpg', SIZE);
-
-    const calls = mockDrawImageRectOptions.mock.calls;
-    const [firstSrc] = calls[0].slice(1);
-    const [, lastDst] = calls[calls.length - 1].slice(1);
-    expect(firstSrc).toEqual({ x: 0, y: 0, width: 400, height: 300 });
-    expect(lastDst).toEqual({ x: 0, y: 0, width: SIZE, height: SIZE });
-  });
-
-  it('halves the image in steps instead of jumping straight to the target', async () => {
-    mockMakeImageFromEncoded.mockReturnValue({
-      width: () => 1792,
-      height: () => 1792,
-      dispose: mockDispose,
-    });
+  it('halves only the sides that reach four times the target', async () => {
+    mockMakeImageFromEncoded.mockReturnValue(fakeImage(4000, 1000));
 
     await preprocessImageWithSkia('file:///leaf.jpg', 224);
 
-    const destinations = mockDrawImageRectOptions.mock.calls.map((c) => c[2].width);
-    expect(destinations).toEqual([896, 448, 224, 224]);
-  });
-
-  it('scales in a single step when the source is already close to the target', async () => {
-    mockMakeImageFromEncoded.mockReturnValue({
-      width: () => 300,
-      height: () => 300,
-      dispose: mockDispose,
-    });
-
-    await preprocessImageWithSkia('file:///leaf.jpg', 224);
-
-    expect(mockDrawImageRectOptions).toHaveBeenCalledTimes(1);
+    const sizes = mockDrawImageRectOptions.mock.calls.map((c) => [c[2].width, c[2].height]);
+    expect(sizes).toEqual([
+      [2000, 500],
+      [1000, 500],
+      [500, 500],
+    ]);
+    expect(mockReadPixels.mock.calls[0][2]).toMatchObject({ width: 500, height: 500 });
   });
 
   it('releases every native resource it allocates', async () => {
-    mockMakeImageFromEncoded.mockReturnValue({
-      width: () => 300,
-      height: () => 300,
-      dispose: mockDispose,
-    });
+    mockMakeImageFromEncoded.mockReturnValue(fakeImage(1800, 1800));
 
     await preprocessImageWithSkia('file:///leaf.jpg', 224);
 
-    // data + image + snapshot + surface
-    expect(mockDispose).toHaveBeenCalledTimes(4);
+    expect(mockMakeOffscreen).toHaveBeenCalledTimes(2);
+    expect(mockDispose).toHaveBeenCalledTimes(6);
   });
 
   it('throws a clear error when the file cannot be decoded', async () => {
     mockMakeImageFromEncoded.mockReturnValue(null);
 
-    await expect(preprocessImageWithSkia('file:///broken.jpg', SIZE)).rejects.toThrow(
-      /No se pudo decodificar/
+    await expect(preprocessImageWithSkia('file:///broken.jpg', 224)).rejects.toThrow(
+      /No se pudo decodificar/,
     );
+  });
+
+  it('throws when the pixels cannot be read and still releases resources', async () => {
+    mockReadPixels.mockReturnValue(null);
+
+    await expect(preprocessImageWithSkia('file:///leaf.jpg', 224)).rejects.toThrow(/pixeles/);
+    expect(mockDispose).toHaveBeenCalledTimes(2);
   });
 });

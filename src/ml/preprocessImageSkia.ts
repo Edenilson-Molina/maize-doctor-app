@@ -7,37 +7,33 @@ import {
   type SkImage,
 } from '@shopify/react-native-skia';
 import { buildInputTensor } from './imageTensor';
+import { resizeBilinearAntialias } from './resample';
+
+const MAX_FINAL_FACTOR = 4;
 
 /**
- * Reduce una imagen a la mitad tantas veces como haga falta para que el escalado final
- * no salte más de un factor de dos.
+ * Reduce a la mitad cada lado que mida al menos `MAX_FINAL_FACTOR` veces el destino,
+ * hasta que ninguno lo alcance.
  *
- * `drawImageRectOptions` con `FilterMode.Linear` y `MipmapMode.None` muestrea cuatro
- * téxeles por píxel de salida. Bajar una foto de 12 MP a 224 en un solo paso descarta
- * así más del 99 % de los píxeles y produce aliasing severo: el pipeline de entrenamiento
- * escala con un filtro de soporte proporcional al factor, que promedia todos. Medido sobre
- * imágenes del corpus, esa diferencia cambia la clase predicha y multiplica por cincuenta
- * la distancia de Mahalanobis del detector OOD, que entonces rechaza hojas legítimas.
- *
- * Cada paso a la mitad con filtro lineal equivale a promediar bloques de 2x2 —el mismo
- * cálculo que un nivel de mipmap—, así que encadenarlos reconstruye el promedio que falta.
+ * Cada paso a la mitad con filtro lineal promedia pares de píxeles, así que la imagen
+ * intermedia conserva el contenido de toda la foto con muchos menos píxeles que leer
+ * desde JavaScript. Los lados ya cercanos al destino se dejan intactos.
  *
  * @param {SkImage} image Imagen decodificada.
  * @param {number} size Lado del cuadrado de destino.
  * @returns {{image: SkImage, dispose: () => void}} Imagen reducida y la liberación de los
  *   recursos intermedios que se crearon para obtenerla.
  */
-function halveUntilNear(image: SkImage, size: number): { image: SkImage; dispose: () => void } {
+function halveLargeSides(image: SkImage, size: number): { image: SkImage; dispose: () => void } {
+  const limit = size * MAX_FINAL_FACTOR;
   const surfaces: { dispose: () => void }[] = [];
   const images: SkImage[] = [];
   let current = image;
-
-  while (current.width() >= size * 2 && current.height() >= size * 2) {
-    const width = Math.max(size, Math.floor(current.width() / 2));
-    const height = Math.max(size, Math.floor(current.height() / 2));
+  while (current.width() >= limit || current.height() >= limit) {
+    const width = current.width() >= limit ? Math.floor(current.width() / 2) : current.width();
+    const height = current.height() >= limit ? Math.floor(current.height() / 2) : current.height();
     const surface = Skia.Surface.MakeOffscreen(width, height);
     if (!surface) break;
-
     surface
       .getCanvas()
       .drawImageRectOptions(
@@ -47,13 +43,11 @@ function halveUntilNear(image: SkImage, size: number): { image: SkImage; dispose
         FilterMode.Linear,
         MipmapMode.None,
       );
-
     const reduced = surface.makeImageSnapshot();
     surfaces.push(surface);
     images.push(reduced);
     current = reduced;
   }
-
   return {
     image: current,
     dispose: () => {
@@ -64,15 +58,12 @@ function halveUntilNear(image: SkImage, size: number): { image: SkImage; dispose
 }
 
 /**
- * Prepara una foto para el modelo decodificando y escalando de forma nativa.
+ * Prepara una foto para el modelo con el mismo remuestreo que el entrenamiento.
  *
- * A diferencia de la ruta con `expo-image-manipulator`, aqui no se escribe ni se
- * vuelve a leer un JPEG intermedio: Skia decodifica en memoria, dibuja escalado a
- * size x size y devuelve los pixeles RGBA directamente. Eso elimina un encode JPEG,
- * una escritura a disco, una lectura y el decode en JavaScript de `jpeg-js`.
- *
- * Estira la imagen al cuadrado sin preservar el aspecto, igual que el pipeline de
- * entrenamiento. La rotacion EXIF la resuelve el decodificador nativo.
+ * Skia decodifica en memoria (resolviendo la rotación EXIF) y reduce a la mitad los
+ * lados muy grandes; el paso final a `size x size` lo hace `resizeBilinearAntialias`,
+ * que replica byte a byte el `Resize` bilineal de Pillow usado al entrenar. Estira la
+ * imagen al cuadrado sin preservar el aspecto, igual que el pipeline de entrenamiento.
  *
  * @param {string} imageUri URI file:// de la foto.
  * @param {number} size Lado del cuadrado de entrada del modelo (224).
@@ -90,45 +81,27 @@ export async function preprocessImageWithSkia(
     throw new Error(`No se pudo decodificar la imagen ${imageUri}`);
   }
 
-  const surface = Skia.Surface.MakeOffscreen(size, size);
-  if (!surface) {
-    image.dispose();
-    data.dispose();
-    throw new Error('No se pudo crear la superficie de escalado');
-  }
-
-  const reduced = halveUntilNear(image, size);
+  const reduced = halveLargeSides(image, size);
 
   try {
-    surface
-      .getCanvas()
-      .drawImageRectOptions(
-        reduced.image,
-        Skia.XYWHRect(0, 0, reduced.image.width(), reduced.image.height()),
-        Skia.XYWHRect(0, 0, size, size),
-        FilterMode.Linear,
-        MipmapMode.None,
-      );
+    const width = reduced.image.width();
+    const height = reduced.image.height();
+    const pixels = reduced.image.readPixels(0, 0, {
+      width,
+      height,
+      colorType: ColorType.RGBA_8888,
+      alphaType: AlphaType.Unpremul,
+    });
 
-    const snapshot = surface.makeImageSnapshot();
-    try {
-      const pixels = snapshot.readPixels(0, 0, {
-        width: size,
-        height: size,
-        colorType: ColorType.RGBA_8888,
-        alphaType: AlphaType.Unpremul,
-      });
-
-      if (!pixels) {
-        throw new Error('No se pudieron leer los pixeles de la imagen escalada');
-      }
-
-      return buildInputTensor(pixels as Uint8Array, size);
-    } finally {
-      snapshot.dispose();
+    if (!pixels) {
+      throw new Error('No se pudieron leer los pixeles de la imagen');
     }
+
+    return buildInputTensor(
+      resizeBilinearAntialias(pixels as Uint8Array, width, height, size, size),
+      size,
+    );
   } finally {
-    surface.dispose();
     reduced.dispose();
     image.dispose();
     data.dispose();
